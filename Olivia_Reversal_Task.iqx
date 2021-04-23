@@ -1,0 +1,557 @@
+﻿<usermanual>
+______________________________________________________________________________________________________________
+
+									Reversal Learning Task
+______________________________________________________________________________________________________________
+
+by Sophie Paolizzi
+DEPENd lab
+University of North Carolina, Chapel Hill
+last updated on 12th Dec 2020
+______________________________________________________________________________________________________________
+
+									BACKGROUND INFO 
+______________________________________________________________________________________________________________
+This task has been utilized on several grants in the lab using an EPrime file. 
+This version of the task will run in an online experiment collected for a student master's thesis. 
+
+References:	
+
+_____________________________________________________________________________________________________________
+									
+									TASK DESCRIPTION	
+_____________________________________________________________________________________________________________
+ 
+______________________________________________________________________________________________________________
+									
+									PARAMETERS TO INITIALIZE
+______________________________________________________________________________________________________________
+numTrialEachBlock:    				Number of trials in each block, one face shown per block
+									Each block has one response strategy among: goToWin, noGoToWin, goToAvoid, noGoToAvoid
+faceDuration:						(in ms) Amount of time that the stimuli (face) is shown
+stimulusAndFeedbackGapDuration:		(in ms) Time after stimulus presentation is stopped and before feedback is shown
+feedbackDuration: 					(in ms) Amount of time the feedback is shown
+ITI: 								(in ms) Inter trial time - pause after showing feedback is stopped and before the next stimuli is presented
+___________________________________________________________________________________________________________
+									
+									OUTPUT DATA FILE INFORMATION
+______________________________________________________________________________________________________________
+blockName:							Condition for the current block, options: practice, goToWin, noGoToWin, goToAvoid, noGoToAvoid 
+faceName:							The name of the file with teh face used as stimuli for the current trial
+trialCounter:  					 	The number of the current trial in a particular block
+experimentName:						"Neighborhood"
+responseName:						Used to save instead the name like "space" or "none" instead of keyboard scancodes used by Inquisit
+responseTime:						When space is pressed the time of response after stimulus presentation, NA if no response was given
+isResponseCorrect:					+1 = if the response for a trial is correct, -1 = if the response is incorrect
+isFeedbackAccurate:					+1 = if the feedback given to participant is accurate based on their response and the block condition
+									-1 = if the feedback given to participant is opposite what would had been the correct feedback based on their response and the block condition
+trial_SIS:							+1 = if SIS (social influence score) goes up, feedback shown = up arrow;
+									0 = if SIS remains constant wrt previous trial, feedback shown = neutral sign;
+								    -1 = if SIS decreases, feddback shown = down arrow;
+blockTotal_SIS:						Running sum of trial_SIS for each block
+SIS_toFillMeterOnRightTime:			Same as blockTotal_SIS, set to this value when feedback is given to match the timing of feedback and change in social influence meter
+
+</usermanual>
+
+**************************************************************************************************************
+Defining background 
+**************************************************************************************************************
+<defaults>
+/ fontstyle = ("Arial", 3.5%, false, false, false, false, 5, 1)
+/ screencolor = black
+/ txbgcolor = black
+/ txcolor = white
+/ minimumversion = "6.1.0.0"
+/ canvasaspectratio = (4, 3) 
+</defaults>
+
+**************************************************************************************************************
+Initializing the parameters 
+**************************************************************************************************************
+// Parameters to be fixed before the experiment
+<parameters>
+/ numTrialEachBlock = 40     			// Number of trials in each block
+/ StimDuration = 1000 					// (in ms) Amount of time that the stimuli is shown
+/ stimulusAndFeedbackGapDuration = 500  // (in ms) Time after stimulus presentation is stopped and before feedback is shown
+/ feedbackDuration = 1000 				// (in ms) Amount of time the feedback is shown
+/ ITI = 3000 							// (in ms) Inter trial time - pause after showing feedback is stopped and before the next stimuli is presented
+</parameters>
+      
+**************************************************************************************************************
+Values which will be updated during the trials
+**************************************************************************************************************	    
+<values> 
+/ instructionIndex = 0                  // Used for choosing the next set of instructions in the initial "instructions" block
+/ practiceInstructionIndex = 0          // Used for choosing the next set of instructions in the initial "practice" block
+/ blockNumber = 0     					// Counts the current block number, used for choosing the instructions at the begining of each block
+/ blockName = "practice" 				// Condition of experiment (ex: GoToWin), used for going to the corresponding trial for each block
+										// This is used to repeat same condition trials in one block, so that the numTrialsEachBlock remains a variable and is not fixed
+/ LeftStimSelected = 0					// Used to select the left stimulus which will be shown in each block	
+/ RightStimSelected = 0					// Used to select the right stimulus which will be shown in each block	
+/ percentTrialsCorrectFeedback = 0.8	// Percent of trials in each block that will show the appropriate feedback based on the response
+/ responseAndFeedbackCategory = "" 		// For each trial it stores the combination of correct/incorrect response with correct/incorrect feedback, to choose the correct feedback
+										// "CRCF" = correct response, correct feedback; "IRCF" = incorrect response, correct feedback
+										// "CRIF" = correct response, incorrect feedback; "IRIF" = incorrect response, incorrect feedback
+/ voiceGender = 0 						// 1 = female, 2 = male; Determined based on the face choosen for a block inorder to choose the appropriate feedback sound
+/ voiceSelected = 0 					// 1 = female happy voice, 2 = female disgust voice, 3 = male happy voice, 4 = male disgust voice
+/ isThisTrialPractice = 2 				// 1 = pratice block and 2 = actual experiment block, used in the trials to choose if it is a practice block 
+/ trialCounter = 0						// In each block trials are counted to stop the block when the trialCounter reaches numTrialEachBlock
+/ experimentName = "Reversal_Task"
+/ responseName = ""						// Used to save instead the name like "space" or "none" instead of keyboard scancodes used by Inquisit
+/ responseTime = ""						// When space is pressed the time of response after stimulus presentation, NA if no response was given
+/ isResponseCorrect = 0					// +1 = if the response for a trial is correct, -1 = if the response is incorrect
+/ isFeedbackAccurate = 0				// +1 = if the feedback given to participant is accurate based on their response and the block condition
+										// -1 = if the feedback given to participant is opposite what would had been the correct feedback based on their response and the block condition
+/ trial_SIS = 0							// +1 = if SIS (social influence score) goes up, feedback shown = up arrow;
+										// 0 = if SIS remains constant wrt previous trial, feedback shown = neutral sign;
+										// -1 = if SIS decreases, feddback shown = down arrow;
+/ SIS_toFillMeterOnRightTime = 0 		// same as blockTotal_SIS, set to this value when feedback is given to match the timing of feedback and change in social influence meter
+</values>
+
+**************************************************************************************************************
+Output data file columns
+**************************************************************************************************************
+<data>
+/ columns = (build,values.experimentName, subject, date, time,  																      // General information
+parameters.numTrialEachBlock, parameters.faceDuration, parameters.stimulusAndFeedbackGapDuration, parameters.ITI,     // Input parameters values
+values.blockNumber, values.blockName, expressions.faceName,															  // Block level variables		
+values.trialCounter, values.responseName, values.responseTime, values.responseAndFeedbackCategory, 
+values.isResponseCorrect, values.isFeedbackAccurate)   // Trial level variables		
+</data>
+
+<expressions>
+/ Left = if (values.LeftStimSelected == 10){"wheelbarrow.bmp"}
+	else if (values.LeftStimSelected  == 11){"brush.bmp"}
+	else if (values.LeftStimSelected  == 12){"wrench.bmp"}
+	else if (values.LeftStimSelected  == 13){"wrench.bmp"}
+	else if (values.LeftStimSelected  == 14){"house.bmp" }
+	else if (values.LeftStimSelected  == 15){"orange.bmp"}
+	else if (values.LeftStimSelected  == 16){"pear.bmp"}
+	else if (values.LeftStimSelected  == 17){"pinecone.bmp"}
+	else if (values.LeftStimSelected  == 18){"cactus.bmp"}
+	else if (values.LeftStimSelected  == 19){"anchor.bmp"}
+	else if (values.LeftStimSelected  == 1){"dandelion.bmp"}
+	else if (values.LeftStimSelected  == 20){"ship.bmp"}
+	else if (values.LeftStimSelected  == 21){"telescope.bmp"}
+	else if (values.LeftStimSelected  == 22){"globe.bmp"}
+	else if (values.LeftStimSelected  == 23){"leaf.bmp"}
+	else if (values.LeftStimSelected  == 24){"tree.bmp"}
+	else if (values.LeftStimSelected  == 25){"lamb.bmp"}
+	else if (values.LeftStimSelected  == 26){"owl.bmp"}
+	else if (values.LeftStimSelected  == 27){"lighthouse.bmp"}
+	else if (values.LeftStimSelected  == 28){"plane.bmp"}
+	else if (values.LeftStimSelected  == 29){"light.bmp"}
+	else if (values.LeftStimSelected  == 2){"pen.bmp"}
+	else if (values.LeftStimSelected  == 30){"clipboard.bmp"}
+	else if (values.LeftStimSelected  == 31){"keys.bmp"}
+	else if (values.LeftStimSelected  == 32){"dinosaur.bmp"}
+	else if (values.LeftStimSelected  == 33){"elk.bmp"}
+	else if (values.LeftStimSelected  == 34){"frog.bmp"}
+	else if (values.LeftStimSelected  == 35){"snail.bmp"}
+	else if (values.LeftStimSelected  == 36){"books.bmp"}
+	else if (values.LeftStimSelected  == 37){"car.bmp"}
+	else if (values.LeftStimSelected  == 38){"lightbulb.bmp"}
+	else if (values.LeftStimSelected  == 39){"umbrella.bmp"}
+	else if (values.LeftStimSelected  == 3){"kettle.bmp"}
+	else if (values.LeftStimSelected  == 40){"sun.bmp"}
+	else if (values.LeftStimSelected  == 41){"clouds.bmp"}
+	else if (values.LeftStimSelected  == 42){"arc.bmp"}
+	else if (values.LeftStimSelected  == 4){"carriage.bmp"}
+	else if (values.LeftStimSelected  == 5){"truck.bmp"}
+	else if (values.LeftStimSelected  == 6){"fan.bmp"}
+	else if (values.LeftStimSelected  == 7){"watermelon.bmp"}
+	else if (values.LeftStimSelected  == 8){"skate.bmp"}
+	else if (values.LeftStimSelected  == 9){"binocular.bmp"}
+
+
+/ Right = if (values.RightStimSelected == 10){"wheelbarrow.bmp"}
+ else if (values.RightStimSelected == 11){"brush.bmp"}
+	else if (values.RightStimSelected == 12){"wrench.bmp"}
+	else if (values.RightStimSelected == 13){"wrench.bmp"}
+	else if (values.RightStimSelected == 14){"house.bmp" }
+	else if (values.RightStimSelected == 15){"orange.bmp"}
+	else if (values.RightStimSelected == 16){"pear.bmp"}
+	else if (values.RightStimSelected == 17){"pinecone.bmp"}
+	else if (values.RightStimSelected == 18){"cactus.bmp"}
+	else if (values.RightStimSelected == 19){"anchor.bmp"}
+	else if (values.RightStimSelected == 1){"dandelion.bmp"}
+	else if (values.RightStimSelected == 20){"ship.bmp"}
+	else if (values.RightStimSelected == 21){"telescope.bmp"}
+	else if (values.RightStimSelected == 22){"globe.bmp"}
+	else if (values.RightStimSelected == 23){"leaf.bmp"}
+	else if (values.RightStimSelected == 24){"tree.bmp"}
+	else if (values.RightStimSelected == 25){"lamb.bmp"}
+	else if (values.RightStimSelected == 26){"owl.bmp"}
+	else if (values.RightStimSelected == 27){"lighthouse.bmp"}
+	else if (values.RightStimSelected == 28){"plane.bmp"}
+	else if (values.RightStimSelected == 29){"light.bmp"}
+	else if (values.RightStimSelected == 2){"pen.bmp"}
+	else if (values.RightStimSelected == 30){"clipboard.bmp"}
+	else if (values.RightStimSelected == 31){"keys.bmp"}
+	else if (values.RightStimSelected == 32){"dinosaur.bmp"}
+	else if (values.RightStimSelected == 33){"elk.bmp"}
+	else if (values.RightStimSelected == 34){"frog.bmp"}
+	else if (values.RightStimSelected == 35){"snail.bmp"}
+	else if (values.RightStimSelected == 36){"books.bmp"}
+	else if (values.RightStimSelected == 37){"car.bmp"}
+	else if (values.RightStimSelected == 38){"lightbulb.bmp"}
+	else if (values.RightStimSelected == 39){"umbrella.bmp"}
+	else if (values.RightStimSelected == 3){"kettle.bmp"}
+	else if (values.RightStimSelected == 40){"sun.bmp"}
+	else if (values.RightStimSelected == 41){"clouds.bmp"}
+	else if (values.RightStimSelected == 42){"arc.bmp"}
+	else if (values.RightStimSelected == 4){"carriage.bmp"}
+	else if (values.RightStimSelected == 5){"truck.bmp"}
+	else if (values.RightStimSelected == 6){"fan.bmp"}
+	else if (values.RightStimSelected == 7){"watermelon.bmp"}
+	else if (values.RightStimSelected == 8){"skate.bmp"}
+	else if (values.RightStimSelected == 9){"binocular.bmp"}
+
+</expressions>
+
+**************************************************************************************************************
+Creating stimuli 
+**************************************************************************************************************
+<item Stimuli>
+// Stimuli used in trial blocks
+/ 1 = "Stimuli/dandelion.bmp"
+/ 2 = "Stimuli/pen.bmp"
+/ 3 = "Stimuli/kettle.bmp"
+/ 4 = "Stimuli/carriage.bmp"
+/ 5 = "Stimuli/truck.bmp"
+/ 6 = "Stimuli/fan.bmp"
+/ 8 = "Stimuli/skate.bmp"
+/ 9 = "Stimuli/binocular.bmp"
+/ 11 = "Stimuli/brush.bmp"
+/ 12 = "Stimuli/wrench.bmp"
+/ 13 = "Stimuli/wrench.bmp"
+/ 14 = "Stimuli/house.bmp"
+/ 15 = "Stimuli/orange.bmp"
+/ 16 = "Stimuli/pear.bmp"
+/ 17 = "Stimuli/pinecone.bmp"
+/ 18 = "Stimuli/cactus.bmp"
+/ 19 = "Stimuli/anchor.bmp"
+/ 20 = "Stimuli/ship.bmp"
+/ 21 = "Stimuli/telescope.bmp"
+/ 22 = "Stimuli/globe.bmp"
+/ 23 = "Stimuli/leaf.bmp"
+/ 24 = "Stimuli/tree.bmp"
+/ 25 = "Stimuli/lamb.bmp"
+/ 26 = "Stimuli/owl.bmp"
+/ 27 = "Stimuli/lighthouse.bmp"
+/ 28 = "Stimuli/plane.bmp"
+/ 29 = "Stimuli/light.bmp"
+/ 30 = "Stimuli/clipboard.bmp"
+/ 31 = "Stimuli/keys.bmp"
+/ 32 = "Stimuli/dinosaur.bmp"
+/ 33 = "Stimuli/elk.bmp"
+/ 34 = "Stimuli/frog.bmp"
+/ 35 = "Stimuli/snail.bmp"
+/ 36 = "Stimuli/books.bmp"
+/ 37 = "Stimuli/car.bmp"
+/ 38 = "Stimuli/lightbulb.bmp"
+/ 39 = "Stimuli/umbrella.bmp"
+/ 40 = "Stimuli/sun.bmp"
+/ 41 = "Stimuli/clouds.bmp"
+/ 42 = "Stimuli/arc.bmp"
+
+// Stimuli used in practice block
+/ 10 = "Stimuli/wheelbarrow.bmp"
+/ 7 = "Stimuli/watermelon.bmp"
+</item>
+
+<picture Left>
+/ items = Stimuli
+/ position = (25, 50)
+/ size = (300, 300) // in pixels
+/ select = [
+	values.LeftStimSelected;
+	if (picture.Left == picture.Right) {
+		values.LeftStimSelected += 1;
+	} else {
+		 return picture.Left;
+	};
+]
+</picture>
+
+<picture Right>
+/ items = Stimuli
+/ position = (75, 50)
+/ size = (300, 300) // in pixels
+/ select = [
+	values.RightStimSelected;
+	if (picture.Right == picture.Left) {
+		values.RightStimSelected += 1;
+	} else {
+		return picture.Right;
+	};
+]
+</picture>
+
+<shape yellowboxleft>
+/ shape = rectangle
+/ color = yellow
+/ size = (325, 325)
+/ position = (25, 50)
+</shape>
+
+<shape yellowboxright>
+/ shape = rectangle
+/ color = yellow
+/ size = (325, 325)
+/ position = (75, 50)
+</shape>
+**************************************************************************************************************
+Creating feedback stimuli 
+**************************************************************************************************************
+<text Correct_feedback>
+/ items = ("CORRECT")
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<text Incorrect_feedback>
+/ items = ("INCORRECT")
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+**************************************************************************************************************
+Instructions for explanation of experiment
+**************************************************************************************************************
+<text spaceBarContinueInstructions>
+/ items = ("Press the SPACE BAR to continue.")
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<text spaceBarBeginTrial>
+/ items = ("Press the SPACEBAR when you are ready to begin!")
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<item introInstructions>
+/ 1 = "In this game, two pictures will always appear side by side on the computer screen. Like this...."
+
+/ 2 = "In the beginning, one of the pictures will be RANDOMLY chosen as CORRECT and one will be INCORRECT, 
+~nbut at first you won't know which is which. Using the computer's feedback, try to guess which picture is correct"
+
+/ 3 = "It does NOT matter on what side the picture is. 
+~nPress the LEFT button to select the picture on the left. 
+~nPress the RIGHT button to select the picture on the right."
+
+/ 4 = "Occasionally, the computer will give you wrong feedback: INCORRECT when you choose the CORRECT picture."
+
+/ 5 = "Try to pick the PICTURE that you think has the highest chance of being correct."
+
+/ 6 = "To make the test trickier, the correct picture will change every now and then."
+
+/ 7 = "When you feel like the correct picture has changed, you should start choosing the other picture."
+
+/ 8 = "Just to be sure it makes sense, let's play a quick practice round."
+
+</item>
+
+<text introInstructions>
+/ items = introInstructions
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+/ select = values.instructionIndex
+</text>
+
+<trial introInstructions>
+/ ontrialbegin = [
+	values.instructionIndex += 1;
+]
+/ stimulusframes = [1=introInstructions, spaceBarContinueInstructions]
+/ correctresponse = (" ")
+/ recorddata = false
+</trial>
+
+<block introInstructions>
+/ trials = [
+	1-8 = introInstructions;
+]
+/ responsemode = correct
+/ recorddata = false
+</block>
+
+**************************************************************************************************************
+Instructions for practice sessions
+**************************************************************************************************************
+<text practiceBeginInstruction>
+/ items = ("PRACTICE ROUND")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (70%, 70%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<trial practiceBeginInstruction>
+/ stimulusframes = [1=practiceBeginInstruction, spaceBarBeginTrial]
+/ validresponse = (" ")
+/ correctresponse = (" ")
+/ recorddata = false
+</trial>
+
+
+**************************************************************************************************************
+Practice session block
+**************************************************************************************************************
+<block practice> // designing 
+//Bring up stim (left,right)
+//let participant choose (mouse input)
+//Draw yellow box around participant choice
+//Give feedback
+//ITI
+<trial practice>
+/ stimulusframes = [1 = picture.Left, picture.Right, shape.yellowboxleft, shape.yellowboxright, CorrectPictureLeft, CorrectPictureRight]
+/ validresponse = (rbuttondown)
+/ correctresponse = (list.CorrectPicture)
+/ recorddata = false
+/ draw = if (picture.Left) {
+	true(shape.yellowboxleft)
+} else {
+ true(shape.yellowboxright)
+}
+/ posttrialpause = parameters.ITI
+
+
+/ onblockbegin = [
+	values.isThisTrialPractice = 1;
+]
+/ trials = [ 
+ 
+	1 = RUN_TRIAL; 
+]
+/ responsemode = correct
+/ onblockend = [is this
+	values.isThisTrialPractice = 2;
+]
+</block>
+</trial>
+
+
+**************************************************************************************************************
+Instructions for each experimental blocks 
+**************************************************************************************************************
+<item beginExperimentInstruction>
+/ 1 = "Great! Now that you've practiced, it's time to start. Press the spacebar to begin"
+</item>
+
+<text beginExperimentInstruction>
+/ items = beginExperimentInstruction
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (70%, 70%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+/ select = values.blockNumber
+</text>
+
+<trial beginExperimentInstruction>
+/ stimulusframes = [1=beginExperimentInstruction, spaceBarBeginTrial]
+/ validresponse = (" ")
+/ correctresponse = (" ")
+/ recorddata = false
+</trial>
+
+**************************************************************************************************************
+Blocks of trials with stimulus presentation, response and feedback for each of the 
+4 conditions - goToWin, goToAvoid, noGoToWin and noGoToAvoid
+**************************************************************************************************************
+
+<list provideCorrectOrIncorrectFeedback> // Determining whether to show the correct or incorrect feedback for a particular trial
+/ items = (1, -1) // 1 = correct feedback, -1 = incorrect feedback
+/ itemprobabilities = (values.percentTrialsCorrectFeedback, expressions.percentTrialsIncorrectFeedback)
+/ poolsize = parameters.numTrialEachBlock
+/ selectionmode = random
+</list>
+
+<list CorrectPictureLeft> // Determines which picture is the correct response
+/ items = (picture.Left, picture.Right)
+/ itemprobabilities = (0.8, 0.2)
+/ poolsize = parameters.numTrialEachBlock
+/ selectionmode = random
+</list>
+
+<list CorrectPictureRight> // Determines which picture is the correct response
+/ items = (picture.Left, picture.Right)
+/ itemprobabilities = (0.2, 0.8)
+/ poolsize = parameters.numTrialEachBlock
+/ selectionmode = random
+</list>
+**************************************************************************************************************
+End of all trials 
+**************************************************************************************************************
+<text finish>
+/ items = ("Thank you!")
+/ fontstyle = ("Arial", 4.5%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<text exit>
+/ items = ("Press spacebar to exit")
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<trial lastSlide>
+/ stimulusframes = [1 = finish, exit]
+/ validresponse = (" ")
+/ correctresponse = (" ") 
+/ beginresponseframe = 0
+/ recorddata = false
+</trial>
+ 
+<block lastSlide>
+/ trials = [
+	1 = lastSlide;
+]
+/ responsemode = correct
+/ recorddata = false
+</block>
+
+**************************************************************************************************************
+Defining the sequence of blocks for the experiment
+**************************************************************************************************************
+<expt>
+/ blocks = [
+	1 = introInstructions;
+	2 = practice;	
+	3-4 = noreplace(goToAvoidBlock, noGoToAvoidBlock); // Randomly chooses which block to run first
+	5 = lastSlide;
+]	
+</expt>
