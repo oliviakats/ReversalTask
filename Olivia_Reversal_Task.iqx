@@ -120,6 +120,8 @@ values.isResponseCorrect, values.isFeedbackAccurate)   // Trial level variables
 </data>
 
 <expressions>
+/ percentTrialsIncorrectFeedback = 1-values.percentTrialsCorrectFeedback
+
 / Left = if (values.LeftStimSelected == 10){"wheelbarrow.bmp"}
 	else if (values.LeftStimSelected  == 11){"brush.bmp"}
 	else if (values.LeftStimSelected  == 12){"wrench.bmp"}
@@ -207,6 +209,12 @@ values.isResponseCorrect, values.isFeedbackAccurate)   // Trial level variables
 	else if (values.RightStimSelected == 8){"skate.bmp"}
 	else if (values.RightStimSelected == 9){"binocular.bmp"}
 
+/if_identical = if (picture.Right == picture.Left) {
+		values.RightStimSelected += 1;
+	} else {
+		return picture.Right;
+	};
+
 </expressions>
 
 **************************************************************************************************************
@@ -264,43 +272,29 @@ Creating stimuli
 / items = Stimuli
 / position = (25, 50)
 / size = (300, 300) // in pixels
-/ select = [
-	values.LeftStimSelected;
-	if (picture.Left == picture.Right) {
-		values.LeftStimSelected += 1;
-	} else {
-		 return picture.Left;
-	};
-]
+/ select = values.LeftStimSelected
 </picture>
 
 <picture Right>
 / items = Stimuli
 / position = (75, 50)
 / size = (300, 300) // in pixels
-/ select = [
-	values.RightStimSelected;
-	if (picture.Right == picture.Left) {
-		values.RightStimSelected += 1;
-	} else {
-		return picture.Right;
-	};
-]
+/ select = values.RightStimSelected
 </picture>
 
-<shape yellowboxleft>
-/ shape = rectangle
-/ color = yellow
-/ size = (325, 325)
-/ position = (25, 50)
-</shape>
 
-<shape yellowboxright>
-/ shape = rectangle
-/ color = yellow
-/ size = (325, 325)
+<picture photoBorder_left>
+/ items = ("Stimuli/border.jpg")
+/ position = (25, 50)
+/ size = (450, 450)
+</picture>
+
+<picture photoBorder_right>
+/ items = ("Stimuli/border.jpg")
 / position = (75, 50)
-</shape>
+/ size = (450, 450)
+</picture>
+
 **************************************************************************************************************
 Creating feedback stimuli 
 **************************************************************************************************************
@@ -421,37 +415,94 @@ Instructions for practice sessions
 **************************************************************************************************************
 Practice session block
 **************************************************************************************************************
-<block practice> // designing 
+<trial practice_presentation_left>
 //Bring up stim (left,right)
 //let participant choose (mouse input)
+/ stimulusframes = [1 = picture.Left, picture.Right]
+/ validresponse = ("b", "n")  // how to get a mouse input working? match b with left, n with right"
+/ correctresponse = ("b")
+/ responsemode = correct
+/ timeout = 2000
+/ ontrialend = [ //here we need to set up if-else statement: reference provide correct/incorrect feedback
+	if (trial.practice_presentation_left.response == "b") {
+ else {
+		if (list.provideCorrectOrIncorrectFeedback.nextvalue == 1) {
+			if (trial.practice_presentation_left.response == "b") { //reference keyboard scancodes millisecond website
+				values.responseAndFeedbackCategory = "CRCF";
+				values.isResponseCorrect = 1;
+				values.isFeedbackAccurate = 1;
+			} else {
+				values.responseAndFeedbackCategory = "IRCF";
+				values.isResponseCorrect = -1;
+				values.isFeedbackAccurate = 1;
+			}
+		} else {
+			if (trial.practice_presentation_left.response == "b") {
+				values.responseAndFeedbackCategory = "CRIF";
+				values.isResponseCorrect = 1;
+				values.isFeedbackAccurate = -1;
+			} else {
+				values.responseAndFeedbackCategory = "IRIF";
+				values.isResponseCorrect = -1;
+				values.isFeedbackAccurate = -1;
+			}
+		}
+	}
+ };
+ ]
+		
+/ branch = [
+ if (trial.practice_presentation.response == "b") {
+ // If spacekey is pressed returns a trial where the yellow border  is shown for the remaining time that stimulus needs to be displayed
+		return trial.stimulus_selection_left; 
+	} else 
+	if (trial.practice_presentation.response == "n") {
+		return trial.stimulus_selection_right;
+	}
+]
+</trial>
+	
+<trial stimulus_selection_left> 
 //Draw yellow box around participant choice
 //Give feedback
 //ITI
-<trial practice>
-/ stimulusframes = [1 = picture.Left, picture.Right, shape.yellowboxleft, shape.yellowboxright, CorrectPictureLeft, CorrectPictureRight]
-/ validresponse = (rbuttondown)
-/ correctresponse = (list.CorrectPicture)
+/ stimulusframes = [1 = photoBorder_left, picture.Left, picture.Right]
+/ validresponse = (noresponse)
+/ correctresponse = (noresponse)
+/ trialduration = expressions.remainingStimulusTime_goToWin
 / recorddata = false
-/ draw = if (picture.Left) {
-	true(shape.yellowboxleft)
-} else {
- true(shape.yellowboxright)
-}
-/ posttrialpause = parameters.ITI
+/ branch = [
+	if (values.responseAndFeedbackCategory == "CRCF") { //reference whether choice is correct or incorrect
+		return trial.feedback_correct;
+	} else {
+		return trial.feedback_incorrect;
+	};
+]
+</trial>
 
+<trial stimulus_selection_right> 
+//Draw yellow box around participant choice
+//Give feedback
+//ITI
+/ stimulusframes = [1 = photoBorder_right, picture.Left, picture.Right]
+/ validresponse = (noresponse)
+/ correctresponse = (noresponse)
+/ trialduration = expressions.remainingStimulusTime_goToWin
+/ recorddata = false
+</trial>
 
-/ onblockbegin = [
-	values.isThisTrialPractice = 1;
-]
-/ trials = [ 
- 
-	1 = RUN_TRIAL; 
-]
-/ responsemode = correct
-/ onblockend = [is this
-	values.isThisTrialPractice = 2;
-]
-</block>
+<trial feedback_correct> 
+//display correct or incorrect feedback
+/ stimulusframes = [1 = picture.Left, picture.Right, text.Correct_feedback]
+/ trialduration = 1000
+/ recorddata = false
+</trial>
+
+<trial feedback_incorrect> 
+//display correct or incorrect feedback
+/ stimulusframes = [1 = picture.Left, picture.Right, text.Incorrect_feedback]
+/ trialduration = 1000
+/ recorddata = false
 </trial>
 
 
@@ -475,8 +526,9 @@ Instructions for each experimental blocks
 
 <trial beginExperimentInstruction>
 / stimulusframes = [1=beginExperimentInstruction, spaceBarBeginTrial]
-/ validresponse = (" ")
-/ correctresponse = (" ")
+/ correctresponse = ("x")
+/ validresponse = ("x", "m")
+/ responsetime = 700
 / recorddata = false
 </trial>
 
@@ -485,8 +537,8 @@ Blocks of trials with stimulus presentation, response and feedback for each of t
 4 conditions - goToWin, goToAvoid, noGoToWin and noGoToAvoid
 **************************************************************************************************************
 
-<list provideCorrectOrIncorrectFeedback> // Determining whether to show the correct or incorrect feedback for a particular trial
-/ items = (1, -1) // 1 = correct feedback, -1 = incorrect feedback
+<list provideCorrectOrIncorrectFeedback> //Determining whether to show the correct or incorrect feedback for a particular trial
+/ items = (1, -1) //1 = correct feedback, -1 = incorrect feedback
 / itemprobabilities = (values.percentTrialsCorrectFeedback, expressions.percentTrialsIncorrectFeedback)
 / poolsize = parameters.numTrialEachBlock
 / selectionmode = random
@@ -550,8 +602,8 @@ Defining the sequence of blocks for the experiment
 <expt>
 / blocks = [
 	1 = introInstructions;
-	2 = practice;	
-	3-4 = noreplace(goToAvoidBlock, noGoToAvoidBlock); // Randomly chooses which block to run first
-	5 = lastSlide;
+	// 2 = ;	
+	//3-4 = noreplace(,); // Randomly chooses which block to run first LeftWin, RightWin?)
+	2 = lastSlide;
 ]	
 </expt>
