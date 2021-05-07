@@ -423,32 +423,68 @@ Practice session block
 / correctresponse = ("b")
 / responsemode = correct
 / timeout = 2000
-/ ontrialend = [ //here we need to set up if-else statement: reference provide correct/incorrect feedback
+/ ontrialend = [
 	if (trial.practice_presentation_left.response == "b") {
- else {
-		if (list.provideCorrectOrIncorrectFeedback.nextvalue == 1) {
-			if (trial.practice_presentation_left.response == "b") { //reference keyboard scancodes millisecond website
-				values.responseAndFeedbackCategory = "CRCF";
-				values.isResponseCorrect = 1;
-				values.isFeedbackAccurate = 1;
+		else {
+			if (list.provideCorrectOrIncorrectFeedback.nextvalue == 1) {
+				if (trial.practice_presentation_left.response == "b") { //reference keyboard scancodes millisecond website
+					values.responseAndFeedbackCategory = "CRCF";
+					values.isResponseCorrect = 1;
+					values.isFeedbackAccurate = 1;
+				} else {
+					values.responseAndFeedbackCategory = "IRCF";
+					values.isResponseCorrect = -1;
+					values.isFeedbackAccurate = 1;
+				}
 			} else {
-				values.responseAndFeedbackCategory = "IRCF";
-				values.isResponseCorrect = -1;
-				values.isFeedbackAccurate = 1;
-			}
-		} else {
-			if (trial.practice_presentation_left.response == "b") {
-				values.responseAndFeedbackCategory = "CRIF";
-				values.isResponseCorrect = 1;
-				values.isFeedbackAccurate = -1;
-			} else {
-				values.responseAndFeedbackCategory = "IRIF";
-				values.isResponseCorrect = -1;
-				values.isFeedbackAccurate = -1;
+				if (trial.practice_presentation_left.response == "b") {
+					values.responseAndFeedbackCategory = "CRIF";
+					values.isResponseCorrect = 1;
+					values.isFeedbackAccurate = -1;
+				} else {
+					values.responseAndFeedbackCategory = "IRIF";
+					values.isResponseCorrect = -1;
+					values.isFeedbackAccurate = -1;
+				}
 			}
 		}
-	}
- };
+	 }
+ ]
+ 
+ <trial practice_presentation_right>
+//Bring up stim (left,right)
+//let participant choose (mouse input)
+/ stimulusframes = [1 = picture.Left, picture.Right]
+/ validresponse = ("b", "n")  // how to get a mouse input working? match b with left, n with right"
+/ correctresponse = ("n")
+/ responsemode = correct
+/ timeout = 2000
+/ ontrialend = [
+	if (trial.practice_presentation_right.response == "n") {
+		else {
+			if (list.provideCorrectOrIncorrectFeedback.nextvalue == 1) {
+				if (trial.practice_presentation_right.response == "n") { //reference keyboard scancodes millisecond website
+					values.responseAndFeedbackCategory = "CRCF";
+					values.isResponseCorrect = 1;
+					values.isFeedbackAccurate = 1;
+				} else {
+					values.responseAndFeedbackCategory = "IRCF";
+					values.isResponseCorrect = -1;
+					values.isFeedbackAccurate = 1;
+				}
+			} else {
+				if (trial.practice_presentation_right.response == "n") {
+					values.responseAndFeedbackCategory = "CRIF";
+					values.isResponseCorrect = 1;
+					values.isFeedbackAccurate = -1;
+				} else {
+					values.responseAndFeedbackCategory = "IRIF";
+					values.isResponseCorrect = -1;
+					values.isFeedbackAccurate = -1;
+				}
+			}
+		}
+	 }
  ]
 		
 / branch = [
