@@ -20,6 +20,7 @@ References:
 _____________________________________________________________________________________________________________
 									
 									TASK DESCRIPTION	
+									TASK DESCRIPTION	
 _____________________________________________________________________________________________________________
  
 ______________________________________________________________________________________________________________
@@ -452,11 +453,11 @@ Practice session block
  ]
 		
 / branch = [
- if (trial.practice_presentation.response == "b") {
+ if (trial.practice_presentation_left.response == "b") {
  // If spacekey is pressed returns a trial where the yellow border  is shown for the remaining time that stimulus needs to be displayed
 		return trial.stimulus_selection_left; 
 	} else 
-	if (trial.practice_presentation.response == "n") {
+	if (trial.practice_presentation_right.response == "n") {
 		return trial.stimulus_selection_right;
 	}
 ]
