@@ -415,19 +415,17 @@ Instructions for practice sessions
 **************************************************************************************************************
 Practice session block
 **************************************************************************************************************
-<trial practice_presentation_left>
-//Bring up stim (left,right)
-//let participant choose (mouse input)
+ 
+ <trial practice_presentation_left>
 / stimulusframes = [1 = picture.Left, picture.Right]
-/ validresponse = ("b", "n")  // how to get a mouse input working? match b with left, n with right"
+/ validresponse = ("b", "n") 
 / correctresponse = ("b")
 / responsemode = correct
 / timeout = 2000
 / ontrialend = [
 	if (trial.practice_presentation_left.response == "b") {
-		else {
 			if (list.provideCorrectOrIncorrectFeedback.nextvalue == 1) {
-				if (trial.practice_presentation_left.response == "b") { //reference keyboard scancodes millisecond website
+				if (trial.practice_presentation_left.response == "b") {
 					values.responseAndFeedbackCategory = "CRCF";
 					values.isResponseCorrect = 1;
 					values.isFeedbackAccurate = 1;
@@ -445,11 +443,12 @@ Practice session block
 					values.responseAndFeedbackCategory = "IRIF";
 					values.isResponseCorrect = -1;
 					values.isFeedbackAccurate = -1;
-				}
-			}
-		}
-	 }
+				};
+			};
+		};
  ]
+ 
+ </trial>
  
  <trial practice_presentation_right>
 //Bring up stim (left,right)
@@ -461,9 +460,8 @@ Practice session block
 / timeout = 2000
 / ontrialend = [
 	if (trial.practice_presentation_right.response == "n") {
-		else {
 			if (list.provideCorrectOrIncorrectFeedback.nextvalue == 1) {
-				if (trial.practice_presentation_right.response == "n") { //reference keyboard scancodes millisecond website
+				if (trial.practice_presentation_right.response == "n") {
 					values.responseAndFeedbackCategory = "CRCF";
 					values.isResponseCorrect = 1;
 					values.isFeedbackAccurate = 1;
@@ -481,27 +479,14 @@ Practice session block
 					values.responseAndFeedbackCategory = "IRIF";
 					values.isResponseCorrect = -1;
 					values.isFeedbackAccurate = -1;
-				}
-			}
-		}
-	 }
+				};
+			};
+		};
  ]
 		
-/ branch = [
- if (trial.practice_presentation_left.response == "b") {
- // If spacekey is pressed returns a trial where the yellow border  is shown for the remaining time that stimulus needs to be displayed
-		return trial.stimulus_selection_left; 
-	} else 
-	if (trial.practice_presentation_right.response == "n") {
-		return trial.stimulus_selection_right;
-	}
-]
 </trial>
 	
 <trial stimulus_selection_left> 
-//Draw yellow box around participant choice
-//Give feedback
-//ITI
 / stimulusframes = [1 = photoBorder_left, picture.Left, picture.Right]
 / validresponse = (noresponse)
 / correctresponse = (noresponse)
@@ -517,9 +502,6 @@ Practice session block
 </trial>
 
 <trial stimulus_selection_right> 
-//Draw yellow box around participant choice
-//Give feedback
-//ITI
 / stimulusframes = [1 = photoBorder_right, picture.Left, picture.Right]
 / validresponse = (noresponse)
 / correctresponse = (noresponse)
@@ -528,14 +510,12 @@ Practice session block
 </trial>
 
 <trial feedback_correct> 
-//display correct or incorrect feedback
 / stimulusframes = [1 = picture.Left, picture.Right, text.Correct_feedback]
 / trialduration = 1000
 / recorddata = false
 </trial>
 
 <trial feedback_incorrect> 
-//display correct or incorrect feedback
 / stimulusframes = [1 = picture.Left, picture.Right, text.Incorrect_feedback]
 / trialduration = 1000
 / recorddata = false
@@ -572,22 +552,21 @@ Instructions for each experimental blocks
 Blocks of trials with stimulus presentation, response and feedback for each of the 
 4 conditions - goToWin, goToAvoid, noGoToWin and noGoToAvoid
 **************************************************************************************************************
-
-<list provideCorrectOrIncorrectFeedback> //Determining whether to show the correct or incorrect feedback for a particular trial
-/ items = (1, -1) //1 = correct feedback, -1 = incorrect feedback
+<list provideCorrectOrIncorrectFeedback>
+/ items = (1, -1)
+/ poolsize = 60
 / itemprobabilities = (values.percentTrialsCorrectFeedback, expressions.percentTrialsIncorrectFeedback)
-/ poolsize = parameters.numTrialEachBlock
 / selectionmode = random
 </list>
 
-<list CorrectPictureLeft> // Determines which picture is the correct response
+<list CorrectPictureLeft>
 / items = (picture.Left, picture.Right)
 / itemprobabilities = (0.8, 0.2)
 / poolsize = parameters.numTrialEachBlock
 / selectionmode = random
 </list>
 
-<list CorrectPictureRight> // Determines which picture is the correct response
+<list CorrectPictureRight>
 / items = (picture.Left, picture.Right)
 / itemprobabilities = (0.2, 0.8)
 / poolsize = parameters.numTrialEachBlock
@@ -632,14 +611,22 @@ End of all trials
 / recorddata = false
 </block>
 
+
+<block practice_trial>
+/ trials = [
+	1 = practice_presentation_left;
+]
+/ responsemode = correct
+/ recorddata = false
+</block>
+
 **************************************************************************************************************
 Defining the sequence of blocks for the experiment
 **************************************************************************************************************
 <expt>
 / blocks = [
 	1 = introInstructions;
-	// 2 = ;	
-	//3-4 = noreplace(,); // Randomly chooses which block to run first LeftWin, RightWin?)
-	2 = lastSlide;
+	2 = practice_trial;
+	2 = lastslide;
 ]	
 </expt>
