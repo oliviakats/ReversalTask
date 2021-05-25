@@ -107,6 +107,8 @@ Values which will be updated during the trials
 										// 0 = if SIS remains constant wrt previous trial, feedback shown = neutral sign;
 										// -1 = if SIS decreases, feddback shown = down arrow;
 / SIS_toFillMeterOnRightTime = 0 		// same as blockTotal_SIS, set to this value when feedback is given to match the timing of feedback and change in social influence meter
+/ numbercorrect = 0 
+/ numberoftimes = 0
 </values>
 
 **************************************************************************************************************
@@ -122,6 +124,8 @@ values.isResponseCorrect, values.isFeedbackAccurate)   // Trial level variables
 
 <expressions>
 / percentTrialsIncorrectFeedback = 1-values.percentTrialsCorrectFeedback
+/ correctresponses = values.numbercorrect + values.isResponseCorrect 
+/ feedbackaccurate = values.responsescorrect + values.isFeedbackAccurate
 
 / Left = if (values.LeftStimSelected == 10){"wheelbarrow.bmp"}
 	else if (values.LeftStimSelected  == 11){"brush.bmp"}
@@ -375,12 +379,64 @@ Instructions for explanation of experiment
 / select = values.instructionIndex
 </text>
 
+
+<text PressLeft>
+/ items = ("This time, the LEFT stimulus will be correct. Press the LEFT simulus to earn a reward")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+
+
+<text howyoudid>
+/ items = ("You pressed the left stimulus <%values.numberoftimes%> and earned <%values.numbercorrect%> points!")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<trial howyoudid>
+/ stimulusframes = [1=howyoudid]
+/ correctresponse = (57)
+/ recorddata = false
+</trial>
+
+
+<text PressRight>
+/ items = ("This time, the RIGHT stimulus will be correct. Press the RIGHT simulus to earn a reward")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<trial Pressleft>
+/ stimulusframes = [1=text.PressLeft]
+/ correctresponse = (57)
+/ recorddata = false
+</trial>
+
+<trial Pressright>
+/ stimulusframes = [1=text.PressRight]
+/ correctresponse = (57)
+/ recorddata = false
+</trial>
+
 <trial introInstructions>
 / ontrialbegin = [
 	values.instructionIndex += 1;
 ]
 / stimulusframes = [1=introInstructions, spaceBarContinueInstructions]
-/ correctresponse = (" ")
+/ correctresponse = ( 57)
 / recorddata = false
 </trial>
 
@@ -407,8 +463,8 @@ Instructions for practice sessions
 
 <trial practiceBeginInstruction>
 / stimulusframes = [1=practiceBeginInstruction, spaceBarBeginTrial]
-/ validresponse = (" ")
-/ correctresponse = (" ")
+/ validresponse = ( 57)
+/ correctresponse = ( 57)
 / recorddata = false
 </trial>
 
@@ -419,27 +475,28 @@ Practice session block
  
  <trial practice_presentation_left>
 / stimulusframes = [1 = picture.Left, picture.Right]
-/ validresponse = ("b", "n") 
-/ correctresponse = ("b")
-/ responsemode = correct
-/ timeout = 2000
+/ validresponse = (48, 49) 
+/ correctresponse = (48)
+/ responsemode = free
 / ontrialend = [
-	if (trial.practice_presentation_left.response == "b") {
+	if (trial.practice_presentation_left.response ==  48) {
 			if (list.provideCorrectOrIncorrectFeedback.nextvalue == 1) {
-				if (trial.practice_presentation_left.response == "b") {
+				if (trial.practice_presentation_left.response ==  48) {
 					values.responseAndFeedbackCategory = "CRCF";
 					values.isResponseCorrect = 1;
 					values.isFeedbackAccurate = 1;
+					values.numbercorrect = values.numbercorrect + 1
 				} else {
 					values.responseAndFeedbackCategory = "IRCF";
 					values.isResponseCorrect = -1;
 					values.isFeedbackAccurate = 1;
 				}
 			} else {
-				if (trial.practice_presentation_left.response == "b") {
+				if (trial.practice_presentation_left.response ==  48) {
 					values.responseAndFeedbackCategory = "CRIF";
 					values.isResponseCorrect = 1;
 					values.isFeedbackAccurate = -1;
+					values.numbercorrect = values.numbercorrect + 1
 				} else {
 					values.responseAndFeedbackCategory = "IRIF";
 					values.isResponseCorrect = -1;
@@ -449,33 +506,42 @@ Practice session block
 		};
  ]
  
+/ branch = [
+	if (trial.practice_presentation_left.response ==  48){
+		trial.stimulus_selection_left;
+	} else if (trial.practice_presentation_left.response == 49){
+        trial.stimulus_selection_right;
+	};
+]
  </trial>
  
  <trial practice_presentation_right>
 //Bring up stim (left,right)
 //let participant choose (mouse input)
 / stimulusframes = [1 = picture.Left, picture.Right]
-/ validresponse = ("b", "n")  // how to get a mouse input working? match b with left, n with right"
-/ correctresponse = ("n")
-/ responsemode = correct
+/ validresponse = (48, 49)  // how to get a mouse input working? match b with left, n with right"
+/ correctresponse = (49)
+/ responsemode = free
 / timeout = 2000
 / ontrialend = [
-	if (trial.practice_presentation_right.response == "n") {
+	if (trial.practice_presentation_right.response ==  49) {
 			if (list.provideCorrectOrIncorrectFeedback.nextvalue == 1) {
-				if (trial.practice_presentation_right.response == "n") {
+				if (trial.practice_presentation_right.response ==  49) {
 					values.responseAndFeedbackCategory = "CRCF";
 					values.isResponseCorrect = 1;
 					values.isFeedbackAccurate = 1;
+					values.numbercorrect = values.numbercorrect + 1
 				} else {
 					values.responseAndFeedbackCategory = "IRCF";
 					values.isResponseCorrect = -1;
 					values.isFeedbackAccurate = 1;
 				}
 			} else {
-				if (trial.practice_presentation_right.response == "n") {
+				if (trial.practice_presentation_right.response ==  49) {
 					values.responseAndFeedbackCategory = "CRIF";
 					values.isResponseCorrect = 1;
 					values.isFeedbackAccurate = -1;
+					values.numbercorrect = values.numbercorrect + 1
 				} else {
 					values.responseAndFeedbackCategory = "IRIF";
 					values.isResponseCorrect = -1;
@@ -484,6 +550,14 @@ Practice session block
 			};
 		};
  ]
+ 
+ / branch = [
+	if (trial.practice_presentation_right.response ==  48){
+		trial.stimulus_selection_left;
+	} else if (trial.practice_presentation_right.response == 49){
+        trial.stimulus_selection_right;
+	};
+]
 		
 </trial>
 	
@@ -491,13 +565,13 @@ Practice session block
 / stimulusframes = [1 = photoBorder_left, picture.Left, picture.Right]
 / validresponse = (noresponse)
 / correctresponse = (noresponse)
-/ trialduration = expressions.remainingStimulusTime_goToWin
+/ trialduration = 1000
 / recorddata = false
 / branch = [
-	if (values.responseAndFeedbackCategory == "CRCF") { //reference whether choice is correct or incorrect
-		return trial.feedback_correct;
+	if (values.responseAndFeedbackCategory == "CRCF") {
+		trial.feedback_correct;
 	} else {
-		return trial.feedback_incorrect;
+		trial.feedback_incorrect;
 	};
 ]
 </trial>
@@ -506,8 +580,15 @@ Practice session block
 / stimulusframes = [1 = photoBorder_right, picture.Left, picture.Right]
 / validresponse = (noresponse)
 / correctresponse = (noresponse)
-/ trialduration = expressions.remainingStimulusTime_goToWin
+/ trialduration = 1000
 / recorddata = false
+/ branch = [
+	if (values.responseAndFeedbackCategory == "CRCF") {
+		trial.feedback_correct;
+	} else {
+		trial.feedback_incorrect;
+	};
+]
 </trial>
 
 <trial feedback_correct> 
@@ -598,8 +679,8 @@ End of all trials
 
 <trial lastSlide>
 / stimulusframes = [1 = finish, exit]
-/ validresponse = (" ")
-/ correctresponse = (" ") 
+/ validresponse = ( 57)
+/ correctresponse = ( 57) 
 / beginresponseframe = 0
 / recorddata = false
 </trial>
@@ -615,19 +696,32 @@ End of all trials
 
 <block practice_trial>
 / trials = [
-	1 = practice_presentation_left;
-]
+    1   = introInstructions;
+	2 =  Pressleft;
+	3-6 = practice_presentation_left;
+	7 =  howyoudid; 
+	8 =  Pressright;
+	9-12 = practice_presentation_right;
+	]
 / responsemode = correct
 / recorddata = false
 </block>
+
+
+<block testingblockleft>
+//two blocks of 40 trials: one where left is correct, one where right is correct
+</block>
+
+<block testingblockright>
+//two blocks of 40 trials: one where left is correct, one where right is correct
+</block>
+
 
 **************************************************************************************************************
 Defining the sequence of blocks for the experiment
 **************************************************************************************************************
 <expt>
 / blocks = [
-	1 = introInstructions;
-	2 = practice_trial;
-	2 = lastslide;
+	1 = practice_trial;
 ]	
 </expt>
