@@ -417,7 +417,7 @@ Practice session block
 **************************************************************************************************************
  
  <trial practice_presentation_left>
-/ stimulusframes = [1 = picture.Left, picture.Right]
+/ stimulusframes = [1 = picture.Left, picture.Right, photoBorder_left]
 / validresponse = ("b", "n") 
 / correctresponse = ("b")
 / responsemode = correct
@@ -453,7 +453,7 @@ Practice session block
  <trial practice_presentation_right>
 //Bring up stim (left,right)
 //let participant choose (mouse input)
-/ stimulusframes = [1 = picture.Left, picture.Right]
+/ stimulusframes = [1 = picture.Left, picture.Right, photoBorder_right]
 / validresponse = ("b", "n")  // how to get a mouse input working? match b with left, n with right"
 / correctresponse = ("n")
 / responsemode = correct
