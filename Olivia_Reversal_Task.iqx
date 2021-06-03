@@ -553,6 +553,12 @@ Practice session block
 				};
 			};
 		};
+	if (values.numberoftimes <= 4) {
+		values.numberoftimes = 0
+	};
+	if (values.numbercorrect <= 4) {
+		values.numbercorrect = 0
+	};
  ]
  
  / branch = [
@@ -564,7 +570,16 @@ Practice session block
 ]
 		
 </trial>
-	
+
+<trial reset_trial>
+/ stimulusframes = [1 = picture.Left, picture.Right]
+/ ontrialend = [
+	if (values.numberoftimes =! 0){
+		values.numberoftimes == 0;
+	};
+]
+</trial>
+
 <trial stimulus_selection_left> 
 / stimulusframes = [1 = photoBorder_left, picture.Left, picture.Right]
 / validresponse = (noresponse)
@@ -703,10 +718,11 @@ End of all trials
     1   = introInstructions;
 	2 =  Pressleft;
 	3-6 = practice_presentation_left;
-	7 =  howyoudid; 
-	8 =  Pressright;
-	9-12 = practice_presentation_right;
-	13 = howyoudid
+	7	=  howyoudid; 
+	8   =  reset_trial;
+	9   =  Pressright;
+	10-13 = practice_presentation_right;
+	14 = howyoudid;
 	]
 / responsemode = correct
 / recorddata = false
