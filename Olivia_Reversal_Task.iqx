@@ -388,7 +388,6 @@ Instructions for explanation of experiment
 / select = values.instructionIndex
 </text>
 
-
 <text PressSide>
 / items = ("This time, the <%values.rightleft%> stimulus will be correct. Press the <%values.rightleft%> simulus to earn a reward")
 / fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
@@ -398,8 +397,6 @@ Instructions for explanation of experiment
 / valign = center
 / halign = center
 </text>
-
-
 
 <text howyoudid>
 / items = ("You pressed the <%values.rightleft%> stimulus <%values.numberoftimes%> and earned <%values.numbercorrect%> points!")
@@ -682,8 +679,8 @@ Blocks of trials with stimulus presentation, response and feedback for each of t
 **************************************************************************************************************
 End of all trials 
 **************************************************************************************************************
-<text finish>
-/ items = ("Thank you!")
+<text thankyou>
+/ items = ("Thank you for participating!")
 / fontstyle = ("Arial", 4.5%, true, false, false, false, 5, 1)
 / position = (50%, 50%)
 / size = (80%, 80%)
@@ -702,21 +699,13 @@ End of all trials
 / halign = center
 </text>
 
-<trial lastSlide>
-/ stimulusframes = [1 = finish, exit]
+<trial thankyoutrial>
+/ stimulusframes = [1 = thankyou, exit]
 / validresponse = ( 57)
 / correctresponse = ( 57) 
 / beginresponseframe = 0
 / recorddata = false
 </trial>
- 
-<block lastSlide>
-/ trials = [
-	1 = lastSlide;
-]
-/ responsemode = correct
-/ recorddata = false
-</block>
 
 
 <block practice_trial>
@@ -749,25 +738,21 @@ End of all trials
 / recorddata = false
 </block>
 
-
-
 <block thankyou>
 / trials = [
-1 = thankyoutrial;
+	1 = thankyoutrial;
 ]
-
+/ responsemode = correct
+/ recorddata = false
 </block>
-
-
-
 **************************************************************************************************************
 Defining the sequence of blocks for the experiment
 **************************************************************************************************************
 <expt>
 / blocks = [
 	1 = practice_trial;
-	2-4 = Experiment_block;
-	5 = thankyou;
+	2 = Experiment_block;
+	3 = thankyou;
 	
 ]	
 </expt>
