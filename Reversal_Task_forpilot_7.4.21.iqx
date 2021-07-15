@@ -113,6 +113,7 @@ Values which will be updated during the trials
 / rightleft = "left"
 / reversalnumber = 4
 / totalcorrect = 0
+/totalearnings = 0
 </values>
 
 **************************************************************************************************************
@@ -865,6 +866,13 @@ You earned <%values.totalcorrect%> cents for your performance in this task.")
 		values.block_number += 1;
 	}
 ]
+/ onblockend = [
+	values.totalcorrect = values.totalcorrect + values.numbercorrect;
+	values.totalearnings = values.totalearnings + expressions.centsearned;
+	values.numbercorrect = 0;
+
+]
+
 
 </block>
 
@@ -880,10 +888,16 @@ You earned <%values.totalcorrect%> cents for your performance in this task.")
 / responsemode = correct
 / recorddata = false
 / branch = [
-	if (values.trial_number > 3){
-		return trial.reset_trial;
+	if (values.trial_number > 80){
 		values.block_number += 1;	
 	}
+]
+
+/ onblockend = [
+	values.totalcorrect = values.totalcorrect + values.numbercorrect;
+	values.totalearnings = values.totalearnings + expressions.centsearned;
+	values.numbercorrect = 0;
+
 ]
 </block>
 
