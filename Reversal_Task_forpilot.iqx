@@ -145,48 +145,48 @@ Creating stimuli
 **************************************************************************************************************
 <item Stimuli>
 // Stimuli used in trial blocks
-/ 1 = "dandelion.bmp"
-/ 2 = "pen.bmp"
-/ 3 = "kettle.bmp"
-/ 4 = "carriage.bmp"
-/ 5 = "truck.bmp"
-/ 6 = "fan.bmp"
-/ 7 = "watermelon.bmp"
-/ 8 = "skate.bmp"
-/ 9 = "binocular.bmp"
-/ 10 = "wheelbarrow.bmp"
-/ 11 = "brush.bmp"
-/ 12 = "wrench.bmp"
-/ 13 = "wrench.bmp"
-/ 14 = "house.bmp"
-/ 15 = "orange.bmp"
-/ 16 = "pear.bmp"
-/ 17 = "pinecone.bmp"
-/ 18 = "cactus.bmp"
-/ 19 = "anchor.bmp"
-/ 20 = "ship.bmp"
-/ 21 = "telescope.bmp"
-/ 22 = "globe.bmp"
-/ 23 = "leaf.bmp"
-/ 24 = "tree.bmp"
-/ 25 = "lamb.bmp"
-/ 26 = "owl.bmp"
-/ 27 = "lighthouse.bmp"
-/ 28 = "plane.bmp"
-/ 29 = "light.bmp"
-/ 30 = "clipboard.bmp"
-/ 31 = "keys.bmp"
-/ 32 = "dinosaur.bmp"
-/ 33 = "elk.bmp"
-/ 34 = "frog.bmp"
-/ 35 = "snail.bmp"
-/ 36 = "books.bmp"
-/ 37 = "car.bmp"
-/ 38 = "lightbulb.bmp"
-/ 39 = "umbrella.bmp"
-/ 40 = "sun.bmp"
-/ 41 = "clouds.bmp"
-/ 42 = "arc.bmp"
+/ 1 = "Stimuli/dandelion.bmp"
+/ 2 = "Stimuli/pen.bmp"
+/ 3 = "Stimuli/kettle.bmp"
+/ 4 = "Stimuli/carriage.bmp"
+/ 5 = "Stimuli/truck.bmp"
+/ 6 = "Stimuli/fan.bmp"
+/ 7 = "Stimuli/watermelon.bmp"
+/ 8 = "Stimuli/skate.bmp"
+/ 9 = "Stimuli/binocular.bmp"
+/ 10 = "Stimuli/wheelbarrow.bmp"
+/ 11 = "Stimuli/brush.bmp"
+/ 12 = "Stimuli/wrench.bmp"
+/ 13 = "Stimuli/wrench.bmp"
+/ 14 = "Stimuli/house.bmp"
+/ 15 = "Stimuli/orange.bmp"
+/ 16 = "Stimuli/pear.bmp"
+/ 17 = "Stimuli/pinecone.bmp"
+/ 18 = "Stimuli/cactus.bmp"
+/ 19 = "Stimuli/anchor.bmp"
+/ 20 = "Stimuli/ship.bmp"
+/ 21 = "Stimuli/telescope.bmp"
+/ 22 = "Stimuli/globe.bmp"
+/ 23 = "Stimuli/leaf.bmp"
+/ 24 = "Stimuli/tree.bmp"
+/ 25 = "Stimuli/lamb.bmp"
+/ 26 = "Stimuli/owl.bmp"
+/ 27 = "Stimuli/lighthouse.bmp"
+/ 28 = "Stimuli/plane.bmp"
+/ 29 = "Stimuli/light.bmp"
+/ 30 = "Stimuli/clipboard.bmp"
+/ 31 = "Stimuli/keys.bmp"
+/ 32 = "Stimuli/dinosaur.bmp"
+/ 33 = "Stimuli/elk.bmp"
+/ 34 = "Stimuli/frog.bmp"
+/ 35 = "Stimuli/snail.bmp"
+/ 36 = "Stimuli/books.bmp"
+/ 37 = "Stimuli/car.bmp"
+/ 38 = "Stimuli/lightbulb.bmp"
+/ 39 = "Stimuli/umbrella.bmp"
+/ 40 = "Stimuli/sun.bmp"
+/ 41 = "Stimuli/clouds.bmp"
+/ 42 = "Stimuli/arc.bmp"
 
 </item>
 
@@ -206,13 +206,13 @@ Creating stimuli
 
 
 <picture photoBorder_left>
-/ items = ("Photo_border.png")
+/ items = ("Stimuli/Photo_border.png")
 / position = (25, 50)
 / size = (400, 400))
 </picture>
 
 <picture photoBorder_right>
-/ items = ("Photo_border.png")
+/ items = ("Stimuli/Photo_border.png")
 / position = (75, 50)
 / size = (400, 400)
 </picture>
