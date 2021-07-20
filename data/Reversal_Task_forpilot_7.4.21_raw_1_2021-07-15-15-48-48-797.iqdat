@@ -1,2 +1,0 @@
-build	experimentName	subject	date	time	numTrialEachBlock	faceDuration	stimulusAndFeedbackGapDuration	ITI	blockNumber	blockName	faceName	trialCounter	responseName	responseTime	responseAndFeedbackCategory	isResponseCorrect	isFeedbackAccurate
-6.4.2	Reversal_Task	1	2021-07-15	11:48:48	40		500	2000	0	practice		0			CRCF	1	1
