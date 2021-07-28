@@ -93,8 +93,6 @@ Values which will be updated during the trials
 / responseAndFeedbackCategory = "" 		// For each trial it stores the combination of correct/incorrect response with correct/incorrect feedback, to choose the correct feedback
 										// "CRCF" = correct response, correct feedback; "IRCF" = incorrect response, correct feedback
 										// "CRIF" = correct response, incorrect feedback; "IRIF" = incorrect response, incorrect feedback
-/ voiceGender = 0 						// 1 = female, 2 = male; Determined based on the face choosen for a block inorder to choose the appropriate feedback sound
-/ voiceSelected = 0 					// 1 = female happy voice, 2 = female disgust voice, 3 = male happy voice, 4 = male disgust voice
 / isThisTrialPractice = 1 				// 1 = pratice block and 2 = actual experiment block, used in the trials to choose if it is a practice block 
 / trialCounter = 0						// In each block trials are counted to stop the block when the trialCounter reaches numTrialEachBlock
 / experimentName = "Reversal_Task"
@@ -129,7 +127,7 @@ Expressions of importance
 Output data file columns
 **************************************************************************************************************
 <data>
-/ columns = (build,values.experimentName, subject, date, time, 
+/ columns = (build,values.experimentName, subject, date, time, trialcode, blockcode, stimulusitem,
 trial.presentation_left.response, trial.presentation_left.latency,
 trial.presentation_right.response, trial.presentation_right.latency,
 picture.Left.currentvalue, picture.Right.currentvalue,
@@ -213,6 +211,7 @@ Creating stimuli
 / position = (25, 50)
 / size = (300, 300) // in pixels
 / select = values.LeftStimSelected
+/ erase = false
 </picture>
 
 <picture Right>
@@ -220,18 +219,21 @@ Creating stimuli
 / position = (75, 50)
 / size = (300, 300) // in pixels
 / select = values.RightStimSelected
+/ erase = false
 </picture>
 
 <picture photoBorder_left>
 / items = ("Photo_border.png")
 / position = (25, 50)
 / size = (400, 400))
+/ erase = false
 </picture>
 
 <picture photoBorder_right>
 / items = ("Photo_border.png")
 / position = (75, 50)
 / size = (400, 400)
+/ erase = false
 </picture>
 
 <text trialcount>
@@ -491,8 +493,8 @@ Blocks for practice
 
 <block practice_trial>
 / onblockbegin = [
-	values.LeftStimSelected = round(rand(1, 40));
-	values.RightStimSelected = round(rand(1, 40));
+	values.LeftStimSelected = 1;
+	values.RightStimSelected = 2;
 	if (values.RightStimSelected == values.LeftStimSelected ) {
 		values.RightStimSelected += 1;
 	};	
@@ -519,16 +521,16 @@ Trials for reversal blocks
 
  <trial presentation_left>
 / stimulusframes = [1 = picture.Left, picture.Right]
-/ validresponse = (45, 50) 
-/ correctresponse = (45)
+/ validresponse = (33, 36) 
+/ correctresponse = (33)
 / responsemode = free
-/ timeout = 3000
+/ timeout = 2000
 / ontrialbegin = [
 	values.rightleft = "left"
 ]
 / ontrialend = [
 		if (list.CorrectPictureLeft.nextvalue == 1) {
-			if (trial.presentation_left.response ==  45) {
+			if (trial.presentation_left.response ==  33) {
 				values.responseAndFeedbackCategory = "CRCF";
 				values.isResponseCorrect = 1;
 				values.isFeedbackAccurate = 1;
@@ -540,7 +542,7 @@ Trials for reversal blocks
 				values.numberoftimesright = values.numberoftimesright + 1;
 			}
 		} else if (list.CorrectPictureLeft.nextvalue == 0) {
-			if (trial.presentation_left.response ==  45) {
+			if (trial.presentation_left.response ==  33) {
 				values.responseAndFeedbackCategory = "CRIF";
 				values.isResponseCorrect = 1;
 				values.isFeedbackAccurate = -1;
@@ -559,9 +561,9 @@ Trials for reversal blocks
 ]
  
 / branch = [
-	if (trial.presentation_left.response ==  45){
+	if (trial.presentation_left.response ==  33){
 		trial.stimulus_selection_left;
-	} else if (trial.presentation_left.response == 50){
+	} else if (trial.presentation_left.response == 36){
         trial.stimulus_selection_right;
 	} else if (trial.presentation_left.timeout){
         trial.feedback_noresponse;
@@ -573,33 +575,33 @@ Trials for reversal blocks
 //Bring up stim (left,right)
 //let participant choose (mouse input)
 / stimulusframes = [1 = picture.Left, picture.Right]
-/ validresponse = (45, 50)  // how to get a mouse input working? match b with left, n with right"
-/ correctresponse = (50)
+/ validresponse = (33, 36)  // how to get a mouse input working? match b with left, n with right"
+/ correctresponse = (36)
 / responsemode = free
-/ timeout = 3000
+/ timeout = 2000
 / ontrialbegin = [
 	values.rightleft = "right"
 ]
 / ontrialend = [
 		if (list.CorrectPictureRight.nextvalue == 1) {
-			if (trial.presentation_right.response ==  50) {
+			if (trial.presentation_right.response ==  36) {
 				values.responseAndFeedbackCategory = "CRCF";
 				values.isResponseCorrect = 1;
 				values.isFeedbackAccurate = 1;
 				values.numberoftimesright = values.numberoftimesright + 1;
-			} else if (trial.presentation_right.response ==  45) {
+			} else if (trial.presentation_right.response ==  33) {
 				values.responseAndFeedbackCategory = "IRIF";
 				values.isResponseCorrect = -1;
 				values.isFeedbackAccurate = 1;
 				values.numberoftimesleft = values.numberoftimesleft + 1;
 			};
 		} else if (list.CorrectPictureRight.nextvalue == 0) {
-			if (trial.presentation_right.response ==  50) {
+			if (trial.presentation_right.response ==  36) {
 				values.responseAndFeedbackCategory = "CRIF";
 				values.isResponseCorrect = 1;
 				values.isFeedbackAccurate = -1;
 				values.numberoftimesright = values.numberoftimesright + 1;
-			} else if (trial.presentation_right.response ==  45) {
+			} else if (trial.presentation_right.response ==  33) {
 				values.responseAndFeedbackCategory = "IRCF";
 				values.isResponseCorrect = -1;
 				values.isFeedbackAccurate = -1;
@@ -612,9 +614,9 @@ Trials for reversal blocks
 		]
  
  / branch = [
-	if (trial.presentation_right.response ==  45){
+	if (trial.presentation_right.response ==  33){
 		trial.stimulus_selection_left;
-	} else if (trial.presentation_right.response == 50){
+	} else if (trial.presentation_right.response == 36){
         trial.stimulus_selection_right;
 	} else if (trial.presentation_right.timeout){
         trial.feedback_noresponse;
@@ -627,7 +629,7 @@ Trials for reversal blocks
 / stimulusframes = [1 = picture.Left, picture.Right, photoBorder_left, trialcount]
 / validresponse = (noresponse)
 / correctresponse = (noresponse)
-/ trialduration = 1000
+/ trialduration = 500
 / recorddata = false
 / branch = [
 	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "IRCF") {
@@ -642,7 +644,7 @@ Trials for reversal blocks
 / stimulusframes = [1 =  picture.Left, picture.Right, photoBorder_right, trialcount]
 / validresponse = (noresponse)
 / correctresponse = (noresponse)
-/ trialduration = 1000
+/ trialduration = 500
 / recorddata = false
 / branch = [
 	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "IRCF") {
@@ -655,7 +657,7 @@ Trials for reversal blocks
 
 <trial feedback_correct> 
 / stimulusframes = [1 = picture.Left, picture.Right, text.Correct_feedback]
-/ trialduration = 1000
+/ trialduration = 500
 / recorddata = false
 / ontrialbegin = [
 	values.numbercorrect += 1;
@@ -667,7 +669,7 @@ Trials for reversal blocks
 
 <trial feedback_incorrect> 
 / stimulusframes = [1 = picture.Left, picture.Right, text.Incorrect_feedback]
-/ trialduration = 1000
+/ trialduration = 500
 / recorddata = false
 / branch = [
 	trial.fixation
@@ -676,7 +678,7 @@ Trials for reversal blocks
 
 <trial feedback_noresponse> 
 / stimulusframes = [1 = picture.Left, picture.Right, text.No_response]
-/ trialduration = 1000
+/ trialduration = 500
 / recorddata = false
 / branch = [
 	trial.fixation
@@ -729,11 +731,6 @@ Trials for reversal blocks
 / stimulusframes = [1 = Spacetocontinue, howyoudid]
 / trialduration = 1500
 / ontrialbegin = [
-	values.LeftStimSelected = round(rand(1, 40));
-	values.RightStimSelected = round(rand(1, 40));
-	if (values.RightStimSelected == values.LeftStimSelected ) {
-		values.RightStimSelected += 1;
-	};	
 ]
 / ontrialend = [
 	values.numberoftimesleft = 0;
@@ -856,11 +853,16 @@ You earned <%values.totalearnings%> cents for your performance in this task.")
 / onblockbegin = [
 	values.percentTrialsCorrectFeedback_left = .8;
 	values.percentTrialsCorrectFeedback_right = .2;
-	values.LeftStimSelected = round(rand(1, 40));
-	values.RightStimSelected = round(rand(1, 40));
-	if (values.RightStimSelected == values.LeftStimSelected ) {
-		values.RightStimSelected += 1;
-	};	
+	if (values.isThisTrialPractice == 1) {
+		values.LeftStimSelected = 1;
+		values.RightStimSelected = 2;
+	} else if (values.isThisTrialPractice == 0) {
+		values.LeftStimSelected = round(rand(3, 40));
+		values.RightStimSelected = round(rand(3, 40));
+		if (values.RightStimSelected == values.LeftStimSelected ) {
+				values.RightStimSelected += 1;
+		}
+	};
 ]
 / trials = [
 	1 = presentation_left;
@@ -884,10 +886,15 @@ You earned <%values.totalearnings%> cents for your performance in this task.")
 / onblockbegin = [
 	values.percentTrialsCorrectFeedback_left = .2;
 	values.percentTrialsCorrectFeedback_right = .8;
-	values.LeftStimSelected = round(rand(1, 40));
-	values.RightStimSelected = round(rand(1, 40));
-	if (values.RightStimSelected == values.LeftStimSelected) {
-		values.RightStimSelected = abs(values.RightStimSelected - rand(0, 5));
+	if (values.isThisTrialPractice == 1) {
+		values.LeftStimSelected = 1;
+		values.RightStimSelected = 2;
+	} else if (values.isThisTrialPractice == 0) {
+		values.LeftStimSelected = round(rand(3, 42));
+		values.RightStimSelected = round(rand(3, 42));
+		if (values.RightStimSelected == values.LeftStimSelected ) {
+				values.RightStimSelected += 1;
+		}
 	};	
 ]
 / trials = [
