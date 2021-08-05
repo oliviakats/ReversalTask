@@ -84,41 +84,38 @@ Values which will be updated during the trials
 / instructionIndex = 0                  // Used for choosing the next set of instructions in the initial "instructions" block
 / practiceInstructionIndex = 0          // Used for choosing the next set of instructions in the initial "practice" block
 / block_number = 0     					// Counts the current block number, used for choosing the instructions at the begining of each block
-/ blockName = "practice" 				// Condition of experiment (ex: GoToWin), used for going to the corresponding trial for each block
-/blockNumber = 0										// This is used to repeat same condition trials in one block, so that the numTrialsEachBlock remains a variable and is not fixed
 / LeftStimSelected = 0					// Used to select the left stimulus which will be shown in each block	
 / RightStimSelected = 0					// Used to select the right stimulus which will be shown in each block	
-/ percentTrialsCorrectFeedback_left = 1	  // Percent of trials in each block that will show the appropriate feedback based on the response
-/ percentTrialsCorrectFeedback_right = 0    // Percent of trials in each block that will show the appropriate feedback based on the response
+/ percentTrialsCorrectFeedback_left = 1	  // Percent of trials in each block that will show the appropriate feedback based on the response for the left stimulus
+/ percentTrialsCorrectFeedback_right = 0    // Percent of trials in each block that will show the appropriate feedback based on the response for the right stimulus
 / responseAndFeedbackCategory = "" 		// For each trial it stores the combination of correct/incorrect response with correct/incorrect feedback, to choose the correct feedback
 										// "CRCF" = correct response, correct feedback; "IRCF" = incorrect response, correct feedback
 										// "CRIF" = correct response, incorrect feedback; "IRIF" = incorrect response, incorrect feedback
-/ isThisTrialPractice = 1 				// 1 = pratice block and 2 = actual experiment block, used in the trials to choose if it is a practice block 
-/ trialCounter = 0						// In each block trials are counted to stop the block when the trialCounter reaches numTrialEachBlock
+/ isThisTrialPractice = 1 				// 1 = pratice block and 0 = actual experiment block, used in the trials to choose if it is a practice block 
 / experimentName = "Reversal_Task"
-/ responseName = ""						// Used to save instead the name like "space" or "none" instead of keyboard scancodes used by Inquisit
-/ responseTime = ""						// When space is pressed the time of response after stimulus presentation, NA if no response was given
 / isResponseCorrect = 0					// +1 = if the response for a trial is correct, -1 = if the response is incorrect
 / isFeedbackAccurate = 0				// +1 = if the feedback given to participant is accurate based on their response and the block condition
 										// -1 = if the feedback given to participant is opposite what would had been the correct feedback based on their response and the block condition
-/ trial_number = 0							// +1 = if SIS (social influence score) goes up, feedback shown = up arrow;
-										// 0 = if SIS remains constant wrt previous trial, feedback shown = neutral sign;
-										// -1 = if SIS decreases, feddback shown = down arrow;
+/ trial_number = 0						// trial number (updates by block)
 / SIS_toFillMeterOnRightTime = 0 		// same as blockTotal_SIS, set to this value when feedback is given to match the timing of feedback and change in social influence meter
-/ numbercorrect = 0 
+/ numbercorrectfeedback = 0 
 / numberoftimesleft = 0
 / numberoftimesright = 0
-/ rightleft = "left"
+/ rightleftcorrect = "left"
 / reversalnumber = 1
 / totalcorrect = 0
-/totalearnings = 0
+/ totalearnings = 0
+/ blockNumber = 0
+/ consecutivecorrect = 0
+/ task_phase = "Practice"
+/ total_trialnum = 0
 </values>
 
 **************************************************************************************************************
 Expressions of importance
 **************************************************************************************************************
 <expressions>
-/ centsearned = values.numbercorrect *.5
+/ centsearned = values.numbercorrectfeedback *.5
 / percentTrialsIncorrectFeedback_left = 1 - values.percentTrialsCorrectFeedback_left
 / percentTrialsIncorrectFeedback_right = 1 - values.percentTrialsCorrectFeedback_right
 </expressions>
@@ -127,33 +124,37 @@ Expressions of importance
 Output data file columns
 **************************************************************************************************************
 <data>
-/ columns = (build,values.experimentName, subject, date, time, trialcode, blockcode, stimulusitem,
-trial.presentation_left.response, trial.presentation_left.latency,
-trial.presentation_right.response, trial.presentation_right.latency,
-picture.Left.currentvalue, picture.Right.currentvalue,
-parameters.numTrialEachBlock, parameters.ITI
-values.instructionIndex, 
-values.practiceInstructionIndex,
-values.block_number, 
-values.blockName, 
-values.blockNumber,
-values.LeftStimSelected,
-values.RightStimSelected,
-values.percentTrialsCorrectFeedback_left,
-values.percentTrialsCorrectFeedback_right, 
-values.responseAndFeedbackCategory,									
-values.isThisTrialPractice, 
-values.trialCounter,
-values.isResponseCorrect,
-values.isFeedbackAccurate,
-values.trial_number,  
-values.numbercorrect, 
-values.numberoftimesleft,
-values.numberoftimesright,
-values.rightleft,
-values.reversalnumber, 
-values.totalearnings, 
-expressions.centsearned)
+/ columns = (build, values.experimentName, subject, date, time, trialcode, blockcode, stimulusitem,
+trial.presentation_left.percentcorrect, // running tally of percentage of correct trials
+trial.presentation_right.percentcorrect, //running tally of percentage of correct trials
+trial.presentation_left.response, //response on left trial 
+trial.presentation_left.latency, //responsetime on left trial 
+trial.presentation_right.response, //responset on right trial
+trial.presentation_right.latency, //responsetime on right trial 
+picture.Left.currentvalue, //current number of current left picture
+picture.Right.currentvalue, //current number of current right picture
+values.block_number, // number of block (1-3 == datacollection, 4 == feedback)
+values.blockName, // practice or datacollection
+values.task_phase, // Reversal or Acquisiton?
+values.LeftStimSelected, // number of times pts selected left side (by block)
+values.RightStimSelected, // number of times pts selected right side (by block)
+values.percentTrialsCorrectFeedback_left, // current percentage of rewarding trials for left 
+values.percentTrialsCorrectFeedback_right, // current percentage of rewarding trials for left 
+values.responseAndFeedbackCategory,	// CRCF, IRCF, CRIF, IRIF. Same indo as isResponseCorrect and isFeedbackAccurate. 								
+values.isThisTrialPractice, // was this trial a practice or real trial?
+values.isResponseCorrect, // did they get the right answer?
+values.isFeedbackAccurate, // was the probabilisitc feedback accurate?
+values.trial_number, // what is the trial number? (resets by block) 
+values.total_trialnum, // total trials
+values.numbercorrectfeedback, // how many have they gotten right? (total)
+values.totalcorrect // how many correct overall
+values.numberoftimesleft, // how many times have they pressed the left side?
+values.numberoftimesright, // how many times have they pressed the right side?
+values.rightleftcorrect, //is the right or left stimulus currently correct?
+values.consecutivecorrect, // how many have people gotten right in a row?
+values.reversalnumber, // when will reversal occur for this block?
+values.totalearnings,  // how much have they earned in the task? (tallied at the end of a block))
+expressions.centsearned) //how much have they earned in the block? (running tally))
 </data>
 
 **************************************************************************************************************
@@ -238,7 +239,8 @@ Creating stimuli
 
 <text trialcount>
 /items = ("trial: <%values.trial_number%>
-~n block number <%values.block_number%>")
+~n block number <%values.block_number%> 
+~n consecutivecorrect = <%values.consecutivecorrect%>")
 / position = (80, 15)
 / fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
 / valign = center
@@ -390,7 +392,7 @@ Instructions for explanation of experiment
 </text>
 
 <text PressSide>
-/ items = ("This time, the <%values.rightleft%> stimulus will be correct. Press the <%values.rightleft%> simulus to earn a reward")
+/ items = ("This time, the <%values.rightleftcorrect%> stimulus will be correct. Press the <%values.rightleftcorrect%> simulus to earn a reward")
 / fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
 / position = (50%, 50%)
 / size = (80%, 80%)
@@ -428,13 +430,13 @@ Instructions for explanation of experiment
 / ontrialbegin = [
 	values.percentTrialsCorrectFeedback_left = 0;
 	values.percentTrialsCorrectFeedback_right= 1;
-	values.totalcorrect = values.totalcorrect + values.numbercorrect;
+	values.totalcorrect = values.totalcorrect + values.numbercorrectfeedback;
 	values.totalearnings = expressions.centsearned;
 	list.CorrectPictureLeft.reset();
 	list.CorrectPictureRight.reset();
 ]
 / ontrialend = [
-	values.numbercorrect = 0;
+	values.numbercorrectfeedback = 0;
 	values.numberoftimesleft = 0;
 	values.numberoftimesright;
 ]
@@ -526,7 +528,13 @@ Trials for reversal blocks
 / responsemode = free
 / timeout = 2000
 / ontrialbegin = [
-	values.rightleft = "left"
+	values.rightleftcorrect = "left";
+	if (values.trial_number < values.reversalnumber) {
+		values.task_phase = "Acquisiton";
+	} else if (values.trial_number >= values.reversalnumber) {
+		values.task_phase = "Reversal";
+	};
+	values.total_trialnum += 1;
 ]
 / ontrialend = [
 		if (list.CorrectPictureLeft.nextvalue == 1) {
@@ -535,11 +543,15 @@ Trials for reversal blocks
 				values.isResponseCorrect = 1;
 				values.isFeedbackAccurate = 1;
 				values.numberoftimesleft = values.numberoftimesleft + 1;
-			} else {
+			} else if (trial.presentation_left.response ==  36){
 				values.responseAndFeedbackCategory = "IRIF";
 				values.isResponseCorrect = -1;
 				values.isFeedbackAccurate = 1;
 				values.numberoftimesright = values.numberoftimesright + 1;
+			} else if (trial.presentation_left.timeout) {
+				values.responseAndFeedbackCategory = "NRNF";
+				values.isResponseCorrect = 0;
+				values.isFeedbackAccurate = 1;
 			}
 		} else if (list.CorrectPictureLeft.nextvalue == 0) {
 			if (trial.presentation_left.response ==  33) {
@@ -547,11 +559,15 @@ Trials for reversal blocks
 				values.isResponseCorrect = 1;
 				values.isFeedbackAccurate = -1;
 				values.numberoftimesleft = values.numberoftimesleft + 1;
-			} else {
+			} else if (trial.presentation_left.response ==  36){
 				values.responseAndFeedbackCategory = "IRCF";
 				values.isResponseCorrect = -1;
 				values.isFeedbackAccurate = -1;
 				values.numberoftimesright = values.numberoftimesright + 1;
+			} else if (trial.presentation_left.timeout) {
+				values.responseAndFeedbackCategory = "NRNF";
+				values.isResponseCorrect = 0;
+				values.isFeedbackAccurate = 1;
 			};
 		};
 		
@@ -575,12 +591,18 @@ Trials for reversal blocks
 //Bring up stim (left,right)
 //let participant choose (mouse input)
 / stimulusframes = [1 = picture.Left, picture.Right]
-/ validresponse = (33, 36)  // how to get a mouse input working? match b with left, n with right"
+/ validresponse = (33, 36) 
 / correctresponse = (36)
 / responsemode = free
 / timeout = 2000
 / ontrialbegin = [
-	values.rightleft = "right"
+	values.rightleftcorrect = "right";
+	if (values.trial_number < values.reversalnumber) {
+		values.task_phase = "Acquisiton";
+	} else if (values.trial_number >= values.reversalnumber) {
+		values.task_phase = "Reversal";
+	};
+	values.total_trialnum += 1;
 ]
 / ontrialend = [
 		if (list.CorrectPictureRight.nextvalue == 1) {
@@ -594,6 +616,10 @@ Trials for reversal blocks
 				values.isResponseCorrect = -1;
 				values.isFeedbackAccurate = 1;
 				values.numberoftimesleft = values.numberoftimesleft + 1;
+			} else if (trial.presentation_left.timeout) {
+				values.responseAndFeedbackCategory = "NRNF";
+				values.isResponseCorrect = 0;
+				values.isFeedbackAccurate = 1;
 			};
 		} else if (list.CorrectPictureRight.nextvalue == 0) {
 			if (trial.presentation_right.response ==  36) {
@@ -601,11 +627,15 @@ Trials for reversal blocks
 				values.isResponseCorrect = 1;
 				values.isFeedbackAccurate = -1;
 				values.numberoftimesright = values.numberoftimesright + 1;
-			} else if (trial.presentation_right.response ==  33) {
+			} else if (trial.presentation_right.response == 33) {
 				values.responseAndFeedbackCategory = "IRCF";
 				values.isResponseCorrect = -1;
 				values.isFeedbackAccurate = -1;
 				values.numberoftimesleft = values.numberoftimesleft + 1;
+			} else if (trial.presentation_left.timeout) {
+				values.responseAndFeedbackCategory = "NRNF";
+				values.isResponseCorrect = 0;
+				values.isFeedbackAccurate = -1;
 			};
 		};
 		if (values.isThisTrialPractice == 0){
@@ -614,7 +644,7 @@ Trials for reversal blocks
 		]
  
  / branch = [
-	if (trial.presentation_right.response ==  33){
+	if (trial.presentation_right.response == 33){
 		trial.stimulus_selection_left;
 	} else if (trial.presentation_right.response == 36){
         trial.stimulus_selection_right;
@@ -631,6 +661,13 @@ Trials for reversal blocks
 / correctresponse = (noresponse)
 / trialduration = 500
 / recorddata = false
+/ontrialbegin = [
+	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "CRIF") {
+		values.consecutivecorrect += 1;
+	} else if (values.responseAndFeedbackCategory == "IRCF" || values.responseAndFeedbackCategory == "IRIF") {
+		values.consecutivecorrect = 0;
+	} 
+	]
 / branch = [
 	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "IRCF") {
 		trial.feedback_correct;
@@ -646,6 +683,13 @@ Trials for reversal blocks
 / correctresponse = (noresponse)
 / trialduration = 500
 / recorddata = false
+/ontrialbegin = [
+	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "CRIF") {
+		values.consecutivecorrect += 1;
+	} else if (values.responseAndFeedbackCategory == "IRCF" || values.responseAndFeedbackCategory == "IRIF") {
+		values.consecutivecorrect = 0;
+	} 
+	]
 / branch = [
 	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "IRCF") {
 		trial.feedback_correct;
@@ -656,11 +700,11 @@ Trials for reversal blocks
 </trial>
 
 <trial feedback_correct> 
-/ stimulusframes = [1 = picture.Left, picture.Right, text.Correct_feedback]
+/ stimulusframes = [1 = picture.Left, picture.Right, text.Correct_feedback, text.trialcount]
 / trialduration = 500
 / recorddata = false
 / ontrialbegin = [
-	values.numbercorrect += 1;
+	values.numbercorrectfeedback += 1;
 ]
 / branch = [
 	trial.fixation
@@ -668,7 +712,7 @@ Trials for reversal blocks
 </trial>
 
 <trial feedback_incorrect> 
-/ stimulusframes = [1 = picture.Left, picture.Right, text.Incorrect_feedback]
+/ stimulusframes = [1 = picture.Left, picture.Right, text.Incorrect_feedback, text.trialcount]
 / trialduration = 500
 / recorddata = false
 / branch = [
@@ -677,9 +721,12 @@ Trials for reversal blocks
 </trial>
 
 <trial feedback_noresponse> 
-/ stimulusframes = [1 = picture.Left, picture.Right, text.No_response]
+/ stimulusframes = [1 = picture.Left, picture.Right, text.No_response, text.trialcount]
 / trialduration = 500
 / recorddata = false
+/ ontrialbegin = [
+	values.consecutivecorrect = 0;
+]
 / branch = [
 	trial.fixation
 ]
@@ -689,7 +736,7 @@ Trials for reversal blocks
 
 <trial fixation>
 / stimulusframes = [1 = fixation]
-/ trialduration = 500
+/ trialduration = 100
 / ontrialbegin = [
 	if (values.trial_number >= 80){	
 			values.block_number += 1;	
@@ -697,14 +744,14 @@ Trials for reversal blocks
 ]
 /branch = [
 	if (values.responseAndFeedbackCategory == "IRIF" || values.responseAndFeedbackCategory == "IRCF") {
-		if (values.isThisTrialPractice == 1 && values.rightleft == "left") {
+		if (values.isThisTrialPractice == 1 && values.rightleftcorrect == "left") {
 			return trial.presentation_left;
-		} else if (values.isThisTrialPractice == 1 && values.rightleft == "right") {
+		} else if (values.isThisTrialPractice == 1 && values.rightleftcorrect == "right") {
 			return trial.presentation_right;
-			}
+			};
 	};
 	
-	if (values.isThisTrialPractice == 0 && values.rightleft == "left") {
+	if (values.isThisTrialPractice == 0 && values.rightleftcorrect == "left") {
 		if (values.trial_number == values.reversalnumber) {
 			values.percentTrialsCorrectFeedback_left = .2;
 			values.percentTrialsCorrectFeedback_right = .8;
@@ -713,7 +760,7 @@ Trials for reversal blocks
 			return trial.presentation_left;
 		} else {
 		} 
-	} else if(values.isThisTrialPractice == 0 && values.rightleft == "right") {
+	} else if(values.isThisTrialPractice == 0 && values.rightleftcorrect == "right") {
 		if (values.trial_number == values.reversalnumber) {
 			values.percentTrialsCorrectFeedback_left = .8;
 			values.percentTrialsCorrectFeedback_right = .2;
@@ -735,8 +782,9 @@ Trials for reversal blocks
 / ontrialend = [
 	values.numberoftimesleft = 0;
 	values.numberoftimesright = 0;
-	values.totalcorrect  = values.totalcorrect  + values.numbercorrect
-	values.numbercorrect = 0;
+	values.totalcorrect  = values.totalcorrect  + values.numbercorrectfeedback
+	values.numbercorrectfeedback = 0;
+	values.consecutivecorrect
 	values.trial_number = 0;
 	values.reversalnumber =  round(rand(30,50));
 	if (values.isThisTrialPractice == 1) {
@@ -771,7 +819,7 @@ Instructions for each experimental blocks
 / vjustify = center
 / valign = center
 / halign = center
-/ select = values.blockNumber
+/ select = sequence
 </text>
 
 <trial beginExperimentInstruction>
@@ -781,7 +829,7 @@ Instructions for each experimental blocks
 / recorddata = false
 / ontrialend = [
 	values.isThisTrialPractice = 0;
-	values.numbercorrect = 0;
+	values.numbercorrectfeedback = 0;
 	values.block_number = 1;
 	values.LeftStimSelected = round(rand(1, 40));
 	values.RightStimSelected = round(rand(1, 40));
@@ -870,9 +918,9 @@ You earned <%values.totalearnings%> cents for your performance in this task.")
 	]
 
 / onblockend = [
-	values.totalcorrect = values.totalcorrect + values.numbercorrect;
+	values.totalcorrect = values.totalcorrect + values.numbercorrectfeedback;
 	values.totalearnings = values.totalearnings + expressions.centsearned;
-	values.numbercorrect = 0;
+	values.numbercorrectfeedback = 0;
 	values.trial_number = 0;
 	values.numberoftimesleft = 0;
 	values.numberoftimesright= 0;
@@ -903,9 +951,9 @@ You earned <%values.totalearnings%> cents for your performance in this task.")
 	]
 
 / onblockend = [
-	values.totalcorrect = values.totalcorrect + values.numbercorrect;
+	values.totalcorrect = values.totalcorrect + values.numbercorrectfeedback;
 	values.totalearnings = values.totalearnings + expressions.centsearned;
-	values.numbercorrect = 0;
+	values.numbercorrectfeedback = 0;
 	values.trial_number = 0;
 	values.numberoftimesleft = 0;
 	values.numberoftimesright= 0;
