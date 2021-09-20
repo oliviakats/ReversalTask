@@ -495,6 +495,14 @@ Blocks for practice
 		values.RightStimSelected += 1;
 	};	
 ]
+/ onblockend = [
+	values.total_trialnum = 0;
+	values.trial_number = 0;
+	values.numberoftimesleft = 0;
+	values.numberoftimesright = 0;
+	values.consecutivecorrect = 0;
+]
+
 / trials = [
     1-2 = welcometoTask;
 	3   =  presentation;
@@ -732,7 +740,7 @@ Trials for reversal blocks
 / stimulusframes = [1 = fixation]
 / trialduration = 100
 / ontrialbegin = [
-	if (values.trial_number >= 50){	
+	if (values.trial_number > 50){	
 			values.block_number += 1;	
 		}
 ]
@@ -750,7 +758,7 @@ Trials for reversal blocks
 			values.percentTrialsCorrectFeedback_left = .2;
 			values.percentTrialsCorrectFeedback_right = .8;
 			return trial.presentation_right;
-		} else if (values.trial_number < 50) {
+		} else if (values.trial_number =< 50) {
 			return trial.presentation_left;
 		} else {
 		} 
@@ -759,7 +767,7 @@ Trials for reversal blocks
 			values.percentTrialsCorrectFeedback_left = .8;
 			values.percentTrialsCorrectFeedback_right = .2;
 			return trial.presentation_left;
-		} else if (values.trial_number < 50)  {
+		} else if (values.trial_number =< 50)  {
 			return trial.presentation_right;
 		} else {
 			
