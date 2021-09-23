@@ -76,8 +76,8 @@ Initializing the parameters
 / feedbackDuration = 1000 				// (in ms) Amount of time the feedback is shown
 / ITI = 2000 							// (in ms) Inter trial time - pause after showing feedback is stopped and before the next stimuli is presented
 / maxStimDuration =  2000
-/leftKey = "F"
-/rightKey = "J"
+/leftKey = 33
+/rightKey = 36
 </parameters>
       
 **************************************************************************************************************
@@ -115,8 +115,13 @@ Values which will be updated during the trials
 / task_phase = "Practice"
 / total_trialnum = 0
 / rt =  0
+
+/correctChoicePosition = 0
 /correctKey = 0
 /incorrectKey = 0
+
+/index_correctChoice = 0
+/index_incorrectChoice = 0
 
 </values>
 
@@ -224,30 +229,40 @@ Creating stimuli
 / replace = false
 / resetinterval = 0
 / selectionrate = always
+
+</list>
+
+<list practiceitemnumbers>
+/ items = (1-2)
+/ replace = false
+/ resetinterval = 0
+/ selectionrate = always
+/ selectionmode = random
+</list>
+
+<list itemnumbers>
+/ items = (3-42)
+/ replace = false
+/ resetinterval = 0
+/ selectionrate = always
+/ selectionmode = random
 </list>
 
 
-<picture correctStim>
-/ items = stims
-/ select = values.index_correctChoice
-/ vposition = 50%
-/ erase = false
-/ size = (parameters.picSize, parameters.picSize)
-</picture>
 
 <picture correctStim>
 / items = Stimuli
 / vposition = 50
 / size = (300, 300) // in pixels
-/ select = 
+/ select = values.index_correctChoice
 / erase = false
 </picture>
 
 <picture incorrectStim>
 / items = Stimuli
-/ position = 50
+/ vposition = 50
 / size = (300, 300) // in pixels
-/ select = list.stimulus.nextvalue
+/ select = values.index_incorrectChoice
 / erase = false
 </picture>
 
@@ -414,7 +429,7 @@ Instructions for explanation of experiment
 </text>
 
 <text PressSide>
-/ items = ("This time, the <%values.rightleftcorrect%> stimulus will be correct. Press the <%values.rightleftcorrect%> simulus to earn a reward.")
+/ items = ("This time, the PEN stimulus will be correct. Press the PEN to earn a reward.")
 / fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
 / position = (50%, 50%)
 / size = (90%, 90%)
@@ -533,10 +548,10 @@ Blocks for practice
 	3   =  presentation;
 	4-10 = introInstructions;
 	11 =  Pressside;
-	12-14 = presentation_left; 
+	12-14 = choice; 
 	15   =  reset_trial;
 	16   =  PressRight;
-	17-19 = presentation_right;
+	17-19 = choice;
 	20 = reset_trial; 
 	21 = beginExperimentInstruction;
 	]
@@ -560,9 +575,6 @@ Trials for reversal blocks
 		values.incorrectKey = parameters.leftKey;
 	};
 	picture.incorrectStim.hposition = list.hpositions.nextvalue;
-	
-	picture.correctStim_practice.hposition = picture.correctStim.hposition;
-	picture.incorrectStim_practice.hposition = picture.incorrectStim.hposition;
 
 	if (values.trial_number < values.reversalnumber) {
 		values.task_phase = "Acquisiton";
@@ -576,7 +588,6 @@ Trials for reversal blocks
 / stimulusframes = [1 = picture.correctStim, picture.incorrectStim]
 / validresponse = (parameters.leftKey, parameters.rightKey) 
 / correctresponse = (values.correctKey)
-/ responsemode = free
 / timeout = parameters.maxStimDuration
 / ontrialend = [
 	if (list.CorrectPictureLeft.nextvalue == 1) {
@@ -621,97 +632,15 @@ Trials for reversal blocks
 ]
  
 / branch = [
-	if (trial.choice.response ==  33){
+	if (trial.choice.response == parameters.leftKey){
 		trial.stimulus_selection_left;
-	} else if (trial.choice.response == 36){
+	} else if (trial.choice.response == parameters.rightKey){
         trial.stimulus_selection_right;
 	} else if (trial.choice.timeout){
         trial.feedback_noresponse;
 	} 
 ]
-]
 </trial>
- <trial presentation_left>
-/ stimulusframes = [1 = picture.correctStim, picture.incorrectStim]
-/ validresponse = (33, 36) 
-/ correctresponse = (33)
-/ responsemode = free
-/ timeout = 2000
-/ ontrialbegin = [
-
-picture.correctStim.hposition = list.hpositions.nextvalue;
-	if (picture.correctStim.hposition == "25pct"){
-		values.correctChoicePosition = 1;
-		values.correctKey = parameters.leftKey;
-		values.incorrectKey = parameters.rightKey;
-	} else {
-		values.correctChoicePosition = 2;
-		values.correctKey = parameters.rightKey;
-		values.incorrectKey = parameters.leftKey;
-	};
-	picture.incorrectStim.hposition = list.hpositions.nextvalue;
-	values.rightleftcorrect = "left";
-	if (values.trial_number < values.reversalnumber) {
-		values.task_phase = "Acquisiton";
-	} else if (values.trial_number >= values.reversalnumber) {
-		values.task_phase = "Reversal";
-	};
-	values.total_trialnum += 1;
-]
-/ ontrialend = [
-		if (list.CorrectPictureLeft.nextvalue == 1) {
-			if (trial.presentation_left.response ==  33) {
-				values.responseAndFeedbackCategory = "CRCF";
-				values.isResponseCorrect = 1;
-				values.isFeedbackAccurate = 1;
-				values.numberoftimesleft = values.numberoftimesleft + 1;
-			} else if (trial.presentation_left.response ==  36){
-				values.responseAndFeedbackCategory = "IRIF";
-				values.isResponseCorrect = -1;
-				values.isFeedbackAccurate = 1;
-				values.numberoftimesright = values.numberoftimesright + 1;
-			} else if (trial.presentation_left.timeout) {
-				values.responseAndFeedbackCategory = "NRNF";
-				values.isResponseCorrect = 0;
-				values.isFeedbackAccurate = 1;
-				values.rt = "NA";
-			}
-		} else if (list.CorrectPictureLeft.nextvalue == 0) {
-			if (trial.presentation_left.response ==  33) {
-				values.responseAndFeedbackCategory = "CRIF";
-				values.isResponseCorrect = 1;
-				values.isFeedbackAccurate = -1;
-				values.numberoftimesleft = values.numberoftimesleft + 1;
-			} else if (trial.presentation_left.response ==  36){
-				values.responseAndFeedbackCategory = "IRCF";
-				values.isResponseCorrect = -1;
-				values.isFeedbackAccurate = -1;
-				values.numberoftimesright = values.numberoftimesright + 1;
-			} else if (trial.presentation_left.timeout) {
-				values.responseAndFeedbackCategory = "NRNF";
-				values.isResponseCorrect = 0;
-				values.isFeedbackAccurate = 1;
-			};
-		};
-		
-		if (values.isThisTrialPractice == 0){
-			values.trial_number += 1;
-		};
-		values.rt = trial.presentation_left.latency;
-]
- 
-/ branch = [
-	if (trial.presentation_left.response ==  33){
-		trial.stimulus_selection_left;
-	} else if (trial.presentation_left.response == 36){
-        trial.stimulus_selection_right;
-	} else if (trial.presentation_left.timeout){
-        trial.feedback_noresponse;
-	} 
-]
- </trial>
- 
- <trial presentation_right>
 //Bring up stim (left,right)
 //let participant choose (mouse input)
 / stimulusframes = [1 = picture.correctStim, picture.incorrectStim]
@@ -876,9 +805,9 @@ picture.correctStim.hposition = list.hpositions.nextvalue;
 /branch = [
 	if (values.responseAndFeedbackCategory == "IRIF" || values.responseAndFeedbackCategory == "IRCF") {
 		if (values.isThisTrialPractice == 1 && values.rightleftcorrect == "left") {
-			return trial.presentation_left;
+			return trial.choice;
 		} else if (values.isThisTrialPractice == 1 && values.rightleftcorrect == "right") {
-			return trial.presentation_right;
+			return trial.choice;
 			};
 	};
 	
@@ -886,18 +815,20 @@ picture.correctStim.hposition = list.hpositions.nextvalue;
 		if (values.trial_number == values.reversalnumber) {
 			values.percentTrialsCorrectFeedback_correctStim = .3;
 			values.percentTrialsCorrectFeedback_incorrectStim = .7;
-			return trial.presentation_right;
-		} else if (values.trial_number < 40) {
-			return trial.presentation_left;
+		};
+		
+		if (values.trial_number < 40) {
+			return trial.choice;
 		} else {
 		} 
 	} else if(values.isThisTrialPractice == 0 && values.rightleftcorrect == "right") {
 		if (values.trial_number == values.reversalnumber) {
 			values.percentTrialsCorrectFeedback_correctStim = .7;
 			values.percentTrialsCorrectFeedback_incorrectStim = .3;
-			return trial.presentation_left;
-		} else if (values.trial_number < 40)  {
-			return trial.presentation_right;
+		};
+		
+		if (values.trial_number < 40)  {
+			return trial.choice;
 		} else {
 			
 		}
@@ -1037,18 +968,18 @@ Experiment Blocks
 	values.percentTrialsCorrectFeedback_correctStim = .7;
 	values.percentTrialsCorrectFeedback_incorrectStim = .3;
 	if (values.isThisTrialPractice == 1) {
-		values.Stim_70A30R = 1;
-		values.Stim_30A70R = 2;
+		values.index_correctChoice = list.practiceitemnumbers.nextvalue;
+		values.index_incorrectChoice = list.practiceitemnumbers.nextvalue;
 	} else if (values.isThisTrialPractice == 0) {
-		values.Stim_70A30R = round(rand(3, 40));
-		values.Stim_30A70R = round(rand(3, 40));
+		values.index_correctChoice = list.itemnumbers.nextvalue;
+		values.index_incorrectChoice = list.itemnumbers.nextvalue;
 		if (values.Stim_30A70R == values.Stim_70A30R ) {
 				values.Stim_30A70R += 1;
 		}
 	};
 ]
 / trials = [
-	1 = presentation_left;
+	1 = choice;
 	2 = reset_trial;
 	]
 
@@ -1083,7 +1014,7 @@ Experiment Blocks
 	};	
 ]
 / trials = [
-	1 = presentation_right;
+	1 = choice;
 	2 = reset_trial;
 	]
 
