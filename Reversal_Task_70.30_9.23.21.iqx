@@ -104,10 +104,12 @@ Values which will be updated during the trials
 / trial_number = 0						// trial number (updates by block)
 / SIS_toFillMeterOnRightTime = 0 		// same as blockTotal_SIS, set to this value when feedback is given to match the timing of feedback and change in social influence meter
 / numbercorrectfeedback = 0 
+/ numbercorrect = 0
 / numberoftimesleft = 0
 / numberoftimesright = 0
 / rightleftcorrect = "left"
 / reversalnumber = 1
+/ reached_criterion = 0
 / totalcorrect = 0
 / totalearnings = 0
 / blockNumber = 0
@@ -240,7 +242,6 @@ Creating stimuli
 <list itemnumbers>
 / items = (3-42)
 / replace = false
-/ resetinterval = 0
 / selectionrate = always
 / selectionmode = random
 </list>
@@ -592,7 +593,7 @@ Trials for reversal blocks
 	
 ]
 
-/ stimulusframes = [1 = picture.correctStim, picture.incorrectStim, choicetracker]
+/ stimulusframes = [1 = picture.correctStim, picture.incorrectStim]
 / validresponse = (parameters.leftKey, parameters.rightKey) 
 / correctresponse = (values.correctKey, values.incorrectKey)
 / timeout = parameters.maxStimDuration
@@ -661,6 +662,9 @@ Trials for reversal blocks
 		values.consecutivecorrect += 1;
 		values.numbercorrect += 1;
 		values.totalcorrect +1;
+		if (values.numbercorrect == 8){
+			values.reached_criterion = values.trial_number;
+		}
 	} else if (values.responseAndFeedbackCategory == "IRCF" || values.responseAndFeedbackCategory == "IRIF") {
 		values.consecutivecorrect = 0;
 	} 
@@ -685,6 +689,9 @@ Trials for reversal blocks
 		values.consecutivecorrect += 1;
 		values.numbercorrect += 1;
 		values.totalcorrect +1;
+		if (values.numbercorrect == 8){
+			values.reached_criterion = values.trial_number;
+		}
 	} else if (values.responseAndFeedbackCategory == "IRCF" || values.responseAndFeedbackCategory == "IRIF") {
 		values.consecutivecorrect = 0;
 	} 
@@ -748,14 +755,17 @@ Trials for reversal blocks
 ]
 /branch = [
 	if (values.responseAndFeedbackCategory == "IRIF" || values.responseAndFeedbackCategory == "IRCF") {
-		if (values.isThisTrialPractice == 1 && values.rightleftcorrect == "left") {
+		if (values.isThisTrialPractice == 1 && values.correctChoicePosition == 1) {
+			values.rightleftcorrect = "left";
 			return trial.choice;
-		} else if (values.isThisTrialPractice == 1 && values.rightleftcorrect == "right") {
+		} else if (values.isThisTrialPractice == 1 && values.correctChoicePosition == 2) {
+			values.rightleftcorrect = "right";
 			return trial.choice;
 			};
 	};
 	
-	if (values.isThisTrialPractice == 0 && values.rightleftcorrect == "left") {
+	if (values.isThisTrialPractice == 0 && values.correctChoicePosition == 1) {
+		values.rightleftcorrect == "left";
 		if (values.trial_number == values.reversalnumber) {
 			values.index_correctChoice = values.index_incorrectChoice;
 			values.index_incorrectChoice = values.correct_holding;
@@ -765,7 +775,8 @@ Trials for reversal blocks
 			return trial.choice;
 		} else {
 		} 
-	} else if(values.isThisTrialPractice == 0 && values.rightleftcorrect == "right") {
+	} else if(values.isThisTrialPractice == 0 && values.correctChoicePosition == 2) {
+		values.rightleftcorrect == "right";
 		if (values.trial_number == values.reversalnumber) {
 			values.index_correctChoice = values.index_incorrectChoice;
 			values.index_incorrectChoice = values.correct_holding;
