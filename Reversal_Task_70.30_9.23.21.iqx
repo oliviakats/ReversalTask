@@ -104,6 +104,7 @@ Values which will be updated during the trials
 / trial_number = 0						// trial number (updates by block)
 / SIS_toFillMeterOnRightTime = 0 		// same as blockTotal_SIS, set to this value when feedback is given to match the timing of feedback and change in social influence meter
 / numbercorrectfeedback = 0 
+/ numbercorrectfeedback_block = 0 
 / numbercorrect = 0
 / numberoftimesleft = 0
 / numberoftimesright = 0
@@ -131,10 +132,10 @@ Values which will be updated during the trials
 Expressions of importance
 **************************************************************************************************************
 <expressions>
-/ centsearned = values.numbercorrectfeedback *.5
+/ centsearned = values.numbercorrectfeedback_block *.5
 / percentTrialsCorrectFeedback_correctStim = 1 - values.percentTrialsCorrectFeedback_correctStim
 / percentTrialsCorrectFeedback_incorrectStim = 1 - values.percentTrialsCorrectFeedback_incorrectStim
-/ totalearnings  = values.totalcorrect*.5
+/ totalearnings  = values.numbercorrectfeedback*.5
 </expressions>
 
 **************************************************************************************************************
@@ -164,6 +165,7 @@ values.isFeedbackAccurate, // was the probabilisitc feedback accurate?
 values.trial_number, // what is the trial number? (resets by block) 
 values.total_trialnum, // total trials
 values.numbercorrectfeedback, // how many have they gotten right? (total)
+values.numbercorrectfeedback_block //how many trials correct (block)
 values.totalcorrect // how many correct overall
 values.consecutivecorrect, // how many have people gotten right in a row?
 values.reversalnumber, // when will reversal occur for this block?
@@ -467,6 +469,7 @@ Instructions for explanation of experiment
 ]
 / ontrialend = [
 	values.numbercorrectfeedback = 0;
+	values.numbercorrectfeedback_block = 0;
 	values.numberoftimesleft = 0;
 	values.numberoftimesright = 0;
 ]
@@ -712,6 +715,7 @@ Trials for reversal blocks
 / recorddata = false
 / ontrialbegin = [
 	values.numbercorrectfeedback += 1;
+	values.numbercorrectfeedback_block += 1;
 ]
 / branch = [
 	trial.fixation
@@ -837,6 +841,7 @@ Instructions for each experimental block
 / ontrialend = [
 	values.isThisTrialPractice = 0;
 	values.numbercorrectfeedback = 0;
+	values.numbercorrectfeedback_block = 0;
 	values.block_number = 1;
 ]
 </trial>
@@ -926,6 +931,7 @@ Experiment Blocks
 	values.trial_number = 0;
 	values.numberoftimesleft = 0;
 	values.numberoftimesright= 0;
+	values.numbercorrectfeedback_block = 0;
 
 ]
 
