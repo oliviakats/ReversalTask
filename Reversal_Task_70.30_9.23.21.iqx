@@ -107,7 +107,6 @@ Values which will be updated during the trials
 / numbercorrect = 0
 / numberoftimesleft = 0
 / numberoftimesright = 0
-/ rightleftcorrect = "left"
 / reversalnumber = 1
 / reached_criterion = 0
 / totalcorrect = 0
@@ -119,6 +118,7 @@ Values which will be updated during the trials
 / rt =  0
 
 /correctChoicePosition = 0
+/rightleftcorrect = "set"
 /correctKey = 36
 /incorrectKey = 33
 
@@ -134,7 +134,6 @@ Expressions of importance
 / centsearned = values.numbercorrectfeedback *.5
 / percentTrialsCorrectFeedback_correctStim = 1 - values.percentTrialsCorrectFeedback_correctStim
 / percentTrialsCorrectFeedback_incorrectStim = 1 - values.percentTrialsCorrectFeedback_incorrectStim
-/ totalcorrect = values.totalcorrect + values.numbercorrect
 / totalearnings  = values.totalcorrect*.5
 </expressions>
 
@@ -153,6 +152,7 @@ values.task_phase, // Reversal or Acquisiton?
 values.index_correctChoice, // number of times pts selected left side (by block)
 values.index_incorrectChoice, // number of times pts selected right side (by block)
 values.correctChoicePosition,
+values.rightleftcorrect,
 values.correctKey,
 values.incorrectKey,
 values.percentTrialsCorrectFeedback_correctStim, // current percentage of rewarding trials for left 
@@ -165,7 +165,6 @@ values.trial_number, // what is the trial number? (resets by block)
 values.total_trialnum, // total trials
 values.numbercorrectfeedback, // how many have they gotten right? (total)
 values.totalcorrect // how many correct overall
-values.rightleftcorrect, //is the right or left stimulus currently correct?
 values.consecutivecorrect, // how many have people gotten right in a row?
 values.reversalnumber, // when will reversal occur for this block?
 expressions.totalearnings, // how much have they earned in the task? (tallied at the end of a block))
@@ -461,7 +460,6 @@ Instructions for explanation of experiment
 / correctresponse = (57)
 / recorddata = false
 / ontrialbegin = [
-	values.totalcorrect = expressions.totalcorrect;
 	values.totalearnings = expressions.centsearned;
 	values.index_correctChoice = 1;
 	values.index_incorrectChoice = 2;
@@ -534,8 +532,8 @@ Blocks for practice
 ]
 / onblockend= [
 	values.trial_number = 0;
-	values.total_trialnum = 0;
 	values.consecutivecorrect = 0;
+	values.total_trialnum = 0;
 ]
 / trials = [
     1-2 = welcometoTask;
@@ -575,10 +573,12 @@ Trials for reversal blocks
 	picture.correctStim.hposition = list.hpositions.nextvalue;
 	if (picture.correctStim.hposition == 25){
 		values.correctChoicePosition = 1;
+		values.rightleftcorrect = "left";
 		values.correctKey = parameters.leftKey;
 		values.incorrectKey = parameters.rightKey;
 	} else {
 		values.correctChoicePosition = 2;
+		values.rightleftcorrect = "right";
 		values.correctKey = parameters.rightKey;
 		values.incorrectKey = parameters.leftKey;
 	};
@@ -589,6 +589,7 @@ Trials for reversal blocks
 	} else if (values.trial_number >= values.reversalnumber) {
 		values.task_phase = "Reversal";
 	};
+	
 	values.total_trialnum += 1;
 	
 ]
@@ -661,7 +662,7 @@ Trials for reversal blocks
 	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "CRIF") {
 		values.consecutivecorrect += 1;
 		values.numbercorrect += 1;
-		values.totalcorrect +1;
+		values.totalcorrect += 1;
 		if (values.numbercorrect == 8){
 			values.reached_criterion = values.trial_number;
 		}
@@ -688,7 +689,7 @@ Trials for reversal blocks
 	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "CRIF") {
 		values.consecutivecorrect += 1;
 		values.numbercorrect += 1;
-		values.totalcorrect +1;
+		values.totalcorrect += 1;
 		if (values.numbercorrect == 8){
 			values.reached_criterion = values.trial_number;
 		}
@@ -744,28 +745,17 @@ Trials for reversal blocks
 / stimulusframes = [1 = fixation]
 / trialduration = 100
 / ontrialbegin = [
-	if (values.trial_number >= parameters.numTrialEachBlock){	
-			if (values.block_number < 5){
-				values.block_number += 1;	
-			} else {
-				values.block_number = 4;
-			}
-			
-		}
 ]
 /branch = [
 	if (values.responseAndFeedbackCategory == "IRIF" || values.responseAndFeedbackCategory == "IRCF") {
 		if (values.isThisTrialPractice == 1 && values.correctChoicePosition == 1) {
-			values.rightleftcorrect = "left";
 			return trial.choice;
 		} else if (values.isThisTrialPractice == 1 && values.correctChoicePosition == 2) {
-			values.rightleftcorrect = "right";
 			return trial.choice;
 			};
 	};
 	
 	if (values.isThisTrialPractice == 0 && values.correctChoicePosition == 1) {
-		values.rightleftcorrect == "left";
 		if (values.trial_number == values.reversalnumber) {
 			values.index_correctChoice = values.index_incorrectChoice;
 			values.index_incorrectChoice = values.correct_holding;
@@ -776,7 +766,6 @@ Trials for reversal blocks
 		} else {
 		} 
 	} else if(values.isThisTrialPractice == 0 && values.correctChoicePosition == 2) {
-		values.rightleftcorrect == "right";
 		if (values.trial_number == values.reversalnumber) {
 			values.index_correctChoice = values.index_incorrectChoice;
 			values.index_incorrectChoice = values.correct_holding;
@@ -797,10 +786,13 @@ Trials for reversal blocks
 / ontrialbegin = [
 ]
 / ontrialend = [
+	if (values.trial_number >= parameters.numTrialEachBlock){	
+			if (values.block_number < 5){
+				values.block_number += 1;	
+				}
+		};
 	values.numberoftimesleft = 0;
 	values.numberoftimesright = 0;
-	values.totalcorrect  =  expressions.totalcorrect;
-	values.numbercorrectfeedback = 0;
 	values.consecutivecorrect = 0;
 	values.trial_number = 0;
 	values.reversalnumber =  round(rand(14,26));
@@ -930,9 +922,7 @@ Experiment Blocks
 	]
 
 / onblockend = [
-	values.totalcorrect = expressions.totalcorrect;
 	values.totalearnings = expressions.totalearnings;
-	values.numbercorrectfeedback = 0;
 	values.trial_number = 0;
 	values.numberoftimesleft = 0;
 	values.numberoftimesright= 0;
