@@ -1,0 +1,301 @@
+---
+title: "Reversal Data Cleaning and Diagnostics"
+author: "Sophie Paolizzi"
+date: "8/3/2021"
+output: html_document
+---
+### Serial Reversal Learning Task (SRLT) 
+
+The SRLT builds on established reversal paradigms (Costa et al., 2015; Dombrovski et al., 2010). In this task, participants select between two random stimuli in three 80-trial blocks, for a total of 240 trials. After participants make their choice, feedback appears on the screen related to whether their choice was correct or incorrect (Figure 1). Each block is made up of an acquisition and reversal for three separate stimulus pairings. In the initial acquisition phase, a given stimulus is associated with “correct” feedback 80% and “incorrect” feedback 20% of the time, while the other is incorrect feedback 80% and correct feedback 20% of the time. In the reversal phase, contingencies are reversed such that the previously predominantly rewarding stimulus is now the less rewarding option. Participants learn these contingencies about the same two stimuli for one acquisition and one reversal phase before two new stimuli are presented. Data for this task were collected using the stimulus presentation software Inquisit.
+
+### Data Cleaning
+The current cleaning code is housed in the Tidy_functions_PUBS script: refer to these functions for any questions about data cleaning. For any questions related to the definition of task variables, refer to: https://docs.google.com/spreadsheets/d/1V2UD28C_zAfH90BnNO3si6c0-qDUDFbHoU44rfdEt4I/edit#gid=1309555968. 
+
+ *Load Pilot Data...*
+
+```{r setup, message=FALSE} 
+knitr::opts_chunk$set(message = FALSE)
+options(knitr.duplicate.label = "allow")
+##Load Packages and source scripts
+pacman::p_load(tidyverse, readr, janitor, ggplot2,wesanderson, cowplot, flextable, plotly, emmeans, data.table)
+setwd("~/github_repos/PUBS_Data_Verification/")
+source("helper_scripts/Tidy_functions_PUBS.R")
+#reversal_data_8.16 <- data.table::fread("~/github_repos/ReversalTask/Reversal_pilot_mTurk.csv", fill = TRUE)
+#load data
+#load("Reversal_Task_Cleaned.Rdata")
+reversal_data <- data.table::fread("~/github_repos/ReversalTask/data/PUBS_Batch2_R.csv", fill = TRUE) %>% group_by(subject, time) %>% filter(!subject %in% c(324215, 1))
+
+reversal_data <- reversal_data %>% mutate(subject = ifelse(time == "18:47:13", 456, subject))
+subjects <- unique(reversal_data$subject)
+
+summary <- "by_phase" #by_block, by_phase, by_block_phase
+
+```
+
+
+*Clean and transform Data. Perform basic checks....*
+```{r}
+trim_cols <- TRUE
+reversal_data <- data.frame(lapply(reversal_data, function(x) gsub(",", ".", x, fixed = TRUE))) 
+
+reversal <- tidy_reversal(reversal_data)
+check_tidy(reversal)
+
+colsToConvert <- c("totalcorrect", "consecutivecorrect", "reversalnumber", "totalearnings",
+              "trial_number", "total_trialnum", "numbercorrectfeedback", "numbercorrectfeedback_block",
+              "centsearned", "trial.choice.latency")
+reversal <- reversal[, (colsToConvert) := lapply(.SD, as.numeric), .SDcols = colsToConvert]
+sapply(reversal, class)
+
+
+# bad <- c()
+# for(i in 1:nrow(check_tidy)){
+#   if(count > 1){
+#     bad[nrow(check_tidy)] <- i
+#   }
+# }
+
+```
+
+
+```{r, include=FALSE}
+reversal <- create_vars_reversal(reversal)
+```
+
+
+*Generating results summary...*
+```{r, include=FALSE}
+
+if (summary == "by_block_phase"){
+  obj <- reversal %>% group_by(subject, block_number, task_phase) %>%
+  summarise(avg_latency = mean(as.numeric(rt)),
+            reached_criterion = min(reached_criterion, na.rm=TRUE),
+            percent_correct = max(percent_correct_phase),
+            NumberofTrials = max(trial_number))%>%
+  mutate(above_threshold = ifelse(reached_criterion >= 10, "Above", "Below")) 
+  stats <- colMeans(obj[sapply(obj, is.numeric)])
+obj <- rbind(obj, stats)
+obj$subject[nrow(obj)] <- "Means"
+} 
+
+
+if (summary == "by_block"){
+obj <- reversal %>% group_by(subject, block_number) %>%
+  summarise(avg_latency = mean(as.numeric(rt)),
+            reached_criterion = min(reached_criterion, na.rm=TRUE),
+            percent_correct = max(numbercorrect)/50,
+            reversal_number = (max(reversalnumber)),
+            NumberofTrials = n())%>%
+  mutate(above_threshold = ifelse(percent_correct >= .50, "Above", "Below")) 
+stats <- colMeans(obj[sapply(obj, is.numeric)])
+obj <- rbind(obj, stats)
+obj$subject[nrow(obj)] <- "Means"
+}
+
+if (summary == "by_phase"){
+obj <- reversal %>% group_by(subject, task_phase) %>%
+  summarise(avg_latency = mean(as.numeric(rt)),
+            reached_criterion = min(reached_criterion, na.rm=TRUE),
+            NumberofTrials = n(),
+            NumberCorrect = max(cumsum(ResponseCorrect)),
+            percent_correct = NumberCorrect/NumberofTrials) %>%
+  mutate(above_threshold = ifelse(percent_correct >= .50, "Above", "Below")) 
+
+stats <- colMeans(obj[sapply(obj, is.numeric)])
+obj <- rbind(obj, stats)
+obj$subject[nrow(obj)] <- "Means"
+}
+
+
+#save(distinct, obj, file = "Reversal_Task_Cleaned.Rdata")
+```
+
+### Pilot Results {.tabset}
+
+**Table 1**. Performance statistics were calculated by block (1-4), and/or phase (acquisition or reversal). Problematic rows are highlighted yellow.
+
+In summary, all participants learned the task remarkably quickly. They all cleared the first criterion of making at least 10 "correct choices" per block (reached_criterion). Data were flagged as "Below Threshold" if participants chose the "correct" option less than 50% of the time in any given phase (percent_correct).
+
+
+```{r,echo=FALSE}
+
+subjects <- as.character(unique(reversal$subject)); cowplot_list <- list(); plot_subjects <- list()
+colormatrix <- ifelse(obj$above_threshold == "Below", wes_palette("Cavalcanti1")[c(1)], "white") ##potentially save these as bad_blocks vector
+
+tab <- obj %>% flextable() %>% flextable::bg(j = 1:ncol(obj), bg=colormatrix)
+
+reversal_earnings <- reversal %>% group_by(subject) %>% summarize(cents_earned = as.numeric(max(totalearnings))) %>% dplyr::rename(centsearned_r = cents_earned) %>% mutate(subject = as.numeric(subject))
+save(reversal_earnings, file = "~/github_repos/PUBS_Data_Verification/Payment/Reversal.Rdata")
+
+sink("/dev/null")
+tab
+sink(); 
+```
+
+
+```{r}
+##N.B. For actual analysis, hang here and create drop_irregular function that prints summaries and has options to get rid of:
+## bad subjects (those with < avg accuracy overall)
+##bad blocks (blocks with <50% accuracy)
+##bad trials (latency > 3000 - this should also encompass noresponse)
+```
+
+
+**Figure 1**. This chunk prints an overall view of reaction time. 
+```{r}
+rts <- list()
+for (i in subjects) {
+  s <- reversal %>% dplyr::filter(subject == i)
+rt_hist <- ggplot(s, aes(rt), stat = "bin") + geom_histogram() + ggtitle(i)
+rts[[i]] <- rt_hist
+}
+
+rts[[length(rts) + 1]] <- rt_hist <- ggplot(reversal, aes(rt), stat = "bin") + geom_histogram() + ggtitle("Overall RTs")
+summary(reversal$rt)
+```
+
+
+
+```{r, message = 'hide'}
+
+for (i in subjects) {
+  d <- reversal %>% dplyr::filter(subject == i)
+  scatter <- ggplot(d, aes(x=trial_number, y = rightleftcorrect, color = as.factor(ResponseCorrect))) +
+     geom_point() +
+     geom_vline(aes(xintercept = reversal_trial, color = "Reversal Point")) +
+     scale_color_manual(labels = c("Incorrect", "Correct", "Reversal Point"),
+                        values = (wes_palette("Cavalcanti1")[c(5,4,2)])) + 
+     xlab("Trial Number") + ylab("Response Type") + ggtitle(i) +
+     facet_wrap(~block_number)
+  scatter[[i]] <- scatter
+  
+  if (summary == "by_block_phase"){
+    h <- obj %>% filter(subject == i) %>% group_by(task_phase)
+    hist <- ggplot(h, aes(y=percent_correct, x = task_phase, fill = above_threshold)) +
+      geom_bar(stat = "identity") + scale_fill_manual(values = (wes_palette("Cavalcanti1")[c(4,5)])) + ylab("Percentage Correct") + xlab("") +  facet_grid(~ block_number)
+ hist[[i]] <- hist
+  } else if (summary == "by_block"){
+    h <- obj %>% filter(subject == i) %>% group_by(block_number)
+    hist <- ggplot(h, aes(y=percent_correct, x = block_number, fill = above_threshold)) +
+      geom_bar(stat = "identity") + scale_fill_manual(values = (wes_palette("Cavalcanti1")[c(4,5)])) + ylab("Percentage Correct") + xlab("")
+  } else if (summary == "by_phase"){
+    h <- obj %>% filter(subject == i) %>% group_by(task_phase)
+    hist <- ggplot(h, aes(y=percent_correct, x = task_phase, fill = above_threshold)) +
+      geom_bar(stat = "identity") + scale_fill_manual(values = (wes_palette("Cavalcanti1")[c(4,5)])) + ylab("Percentage Correct") + xlab("")
+  }
+
+ plot_subjects[[i]] <- list(scatter, hist) 
+cowplot_list[[i]] <- local({
+        i <- cowplot <- cowplot::plot_grid(scatter, hist, nrow = 2)
+})
+}
+```
+
+
+## Summary of Reversal Findings {.tabset}
+```{r}
+
+template <- c(
+    "### Subject {{y}}\n",
+    "```{r, echo = FALSE}\n",
+    "cowplot_list[[{{y}}]] \n",
+    "```\n",
+    "\n"
+  )
+
+plots <- lapply(1:length(cowplot_list), function(y) {knitr::knit_expand(text = template)})
+
+```
+
+
+
+`r knitr::knit(text = unlist(plots))`
+
+
+## {-}
+
+
+```{r}
+a_1 <- aov(rt ~ task_phase, data = reversal)
+summary(a_1)
+a_1 <- aov(rt ~ block_number, data = reversal)
+summary(a_1)
+
+rt_trialnum <- lm(rt ~ task_phase + as.numeric(block_number), data = reversal)
+summary(rt_trialnum)
+
+emmeans(rt_trialnum, "task_phase")
+emmeans(rt_trialnum, "block_number")
+
+
+
+```
+
+
+```{r}
+save(reversal, file = "~/github_repos/ReversalTask/data/reversal_proc.RData")
+```
+
+
+## Issues Warranting Discussion {.tabset}
+
+### Finalized Notes - 10/5/21 {.active}
+##### Pilot Findings Summary
+On average, 8 participants made the "correct" choice approximately 65% of the time, and made at least 10 correct choices by trial 10. Both of these outcomes participants are learning the task fine in 5 blocks of 40 trials. 
+
+##### Data Visualizations and Verification
+
+SGP - it would make sense to add in a function which returns particularly bad blocks in terms of RT. 
+
+##### Reaction Time.
+
+Reaction times averaged approximately 480 ms, which seems pretty good. There were also 5 trials with 0 latency, but it seems like this will inevitably be a feature of the task... 
+
+##### Issues with Task
+
+Issues for 9/23 appear addressed. Data is slated for collection the week of 10/11. Review Complete.
+
+1. ~~Confirm that final data is generating data that makes sense.~~ 
+2. Generate vector of bad RTS and provide info on possible transforms. (this is complete)
+3. ~~Ensure that Qualtrics is not re-using IDs (lengthen randomID string).~~ 
+4. ~~add workerIds to embedded data so data can be matched across participants more easily.~~ 
+
+
+### For Michael Discussion 9/23 {.active}
+##### Pilot Findings Summary
+11 participants made the "correct" choice approximately 85% of the time, and made at least 10 correct choices by trial 12, on average. Both of these outcomes suggest the block length is working out well with 5 blocks of 40 trials. 
+
+##### Data Visualizations and Verification
+
+SGP added an option at the top of the script to examine data by block, phase, or both. This will hopefully help to adjust views on data easily. it would make sense to add in a function which returns particularly bad blocks in terms of RT. 
+
+##### Reaction Time.
+
+Average reaction times averaged approximately 200 ms, which is incredibly short. We should spend some time discussing the implications of this. There were also trials with 0 latency, which seems physically impossible. 
+
+##### Issues with Task + Plans for remedying
+A few critical concerns came up immediately: First, there are IDs that overlap. This was updated in the qualtrics survey, and luckily data was still distinguishable by time stamp. Second, one of those repeated subject did not complete the task fully (they bailed in the middle of the cannon task). - It's unclear why, but this means I cannot pay this participant. They also only completed 40% of the surveys, indicating to me they were not going to receive payment anyway. Third, it seems the workerIDs were not recorded in the qualtrics survey. This has now been updated and will be testing this evening. 
+
+Overall, these graphs corroborate the idea that participants may be learning incredibly quickly. I worry that this means participants will reach a ceiling very fast, and we won't see effects of block or learning over time. Adding an explicit instruction for participants to respond as quickly and accurately as possible did speed up the task considerably. Participant's reaction times were fast - alarmingly fast. The average reaction time was 200ms, and there were trials where some participants had reaction times of 0. This seems problematic for analysis. 
+
+This next block is creating all variables I cannot record directly from inquisit for whatever reason (not recording at numeric, wrong block number, etc.). I worked to create as many variables as possible within the task structure, but there are still a few missing that I have to transform offline. 
+1. Confirm that final data is generating data that makes sense. 
+2. Generate vector of bad RTS and provide info on possible transforms.
+3. Ensure that Qualtrics is not re-using IDs (lengthen randomID string). 
+4. add workerIds to embedded data so data can be matched across participants more easily. 
+
+
+### For Michael Discussion 8/26 - ARCHIVE
+On average, participants made the "correct" choice approximately 80% of the time, and made at least 10 correct choices by trial 17. Both of these outcomes suggest the block length can be shortened as suggested by MNH to as little as 50 trials. Regarding data verification and visualization, it will be important to look at RT data more explicitly in the larger sample. Based on the pilot, it looks like it could be handled pretty easily with a log or invesrse transform. 
+
+**Task Recomendations - For Michael Discussion**
+1. Block length to 50 trials per MNH's suggestion. Given subjects learned the contingencies in an average of 16 trials, this seems about correct. For time's sake, I'm thinking of erring on the side of 4 blocks of 50 trials. 
+2. Explicitly instruct participants to click as quickly and accurately as possible, and shorten response windows such that the entire task will take between 8 and 10 minutes. See "Task Timing" for more details.  https://docs.google.com/spreadsheets/d/1V2UD28C_zAfH90BnNO3si6c0-qDUDFbHoU44rfdEt4I/edit#gid=390744519 
+3. Combine stimulus selection and feedback phases, to save time?
+4. Collect 10-15 subjects and check for final timing.
+
+**Data Check Plans**
+1. Translate dplyr operations into usable functions and try to duplicate as little as possible across tasks.  
+2. drop_irregular function
+3. Check RTs and provide info on possible transforms
+

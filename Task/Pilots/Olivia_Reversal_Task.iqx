@@ -1,0 +1,899 @@
+﻿<usermanual>
+______________________________________________________________________________________________________________
+
+									Reversal Learning Task
+______________________________________________________________________________________________________________
+
+by Sophie Paolizzi and Olivia Katsoudas
+DEPENd lab
+University of North Carolina, Chapel Hill
+last updated on 12th Dec 2020
+______________________________________________________________________________________________________________
+
+									BACKGROUND INFO 
+______________________________________________________________________________________________________________
+This task has been utilized on several grants in the lab using an EPrime file. 
+This version of the task will run in an online experiment collected as part of the PUBS study in Summer 2021. 
+
+References:	
+
+_____________________________________________________________________________________________________________
+									
+									TASK DESCRIPTION		
+_____________________________________________________________________________________________________________
+ 
+______________________________________________________________________________________________________________
+									
+									PARAMETERS TO INITIALIZE
+______________________________________________________________________________________________________________
+numTrialEachBlock:    				Number of trials in each block, one face shown per block
+									Each block has one response strategy among: goToWin, noGoToWin, goToAvoid, noGoToAvoid
+faceDuration:						(in ms) Amount of time that the stimuli (face) is shown
+stimulusAndFeedbackGapDuration:		(in ms) Time after stimulus presentation is stopped and before feedback is shown
+feedbackDuration: 					(in ms) Amount of time the feedback is shown
+ITI: 								(in ms) Inter trial time - pause after showing feedback is stopped and before the next stimuli is presented
+___________________________________________________________________________________________________________
+									
+									OUTPUT DATA FILE INFORMATION
+______________________________________________________________________________________________________________
+blockName:							Condition for the current block, options: practice, goToWin, noGoToWin, goToAvoid, noGoToAvoid 
+faceName:							The name of the file with teh face used as stimuli for the current trial
+trialCounter:  					 	The number of the current trial in a particular block
+experimentName:						"Neighborhood"
+responseName:						Used to save instead the name like "space" or "none" instead of keyboard scancodes used by Inquisit
+responseTime:						When space is pressed the time of response after stimulus presentation, NA if no response was given
+isResponseCorrect:					+1 = if the response for a trial is correct, -1 = if the response is incorrect
+isFeedbackAccurate:					+1 = if the feedback given to participant is accurate based on their response and the block condition
+									-1 = if the feedback given to participant is opposite what would had been the correct feedback based on their response and the block condition
+trial_SIS:							+1 = if SIS (social influence score) goes up, feedback shown = up arrow;
+									0 = if SIS remains constant wrt previous trial, feedback shown = neutral sign;
+								    -1 = if SIS decreases, feddback shown = down arrow;
+blockTotal_SIS:						Running sum of trial_SIS for each block
+SIS_toFillMeterOnRightTime:			Same as blockTotal_SIS, set to this value when feedback is given to match the timing of feedback and change in social influence meter
+
+</usermanual>
+
+**************************************************************************************************************
+Defining background 
+**************************************************************************************************************
+<defaults>
+/ fontstyle = ("Arial", 3.5%, false, false, false, false, 5, 1)
+/ screencolor = white
+/ txbgcolor = white
+/ txcolor = black
+/ minimumversion = "6.1.0.0"
+/ canvasaspectratio = (4, 3) 
+</defaults>
+
+**************************************************************************************************************
+Initializing the parameters 
+**************************************************************************************************************
+// Parameters to be fixed before the experiment
+<parameters>
+/ numTrialEachBlock = 40     			// Number of trials in each block
+/ StimDuration = 1000 					// (in ms) Amount of time that the stimuli is shown
+/ stimulusAndFeedbackGapDuration = 500  // (in ms) Time after stimulus presentation is stopped and before feedback is shown
+/ feedbackDuration = 1000 				// (in ms) Amount of time the feedback is shown
+/ ITI = 2000 							// (in ms) Inter trial time - pause after showing feedback is stopped and before the next stimuli is presented
+</parameters>
+      
+**************************************************************************************************************
+Values which will be updated during the trials
+**************************************************************************************************************	    
+<values> 
+/ instructionIndex = 0                  // Used for choosing the next set of instructions in the initial "instructions" block
+/ practiceInstructionIndex = 0          // Used for choosing the next set of instructions in the initial "practice" block
+/ block_number = 0     					// Counts the current block number, used for choosing the instructions at the begining of each block
+/ blockName = "practice" 				// Condition of experiment (ex: GoToWin), used for going to the corresponding trial for each block
+/blockNumber = 0										// This is used to repeat same condition trials in one block, so that the numTrialsEachBlock remains a variable and is not fixed
+/ LeftStimSelected = 0					// Used to select the left stimulus which will be shown in each block	
+/ RightStimSelected = 0					// Used to select the right stimulus which will be shown in each block	
+/ percentTrialsCorrectFeedback_left = 1	  // Percent of trials in each block that will show the appropriate feedback based on the response
+/ percentTrialsCorrectFeedback_right = 0    // Percent of trials in each block that will show the appropriate feedback based on the response
+/ responseAndFeedbackCategory = "" 		// For each trial it stores the combination of correct/incorrect response with correct/incorrect feedback, to choose the correct feedback
+										// "CRCF" = correct response, correct feedback; "IRCF" = incorrect response, correct feedback
+										// "CRIF" = correct response, incorrect feedback; "IRIF" = incorrect response, incorrect feedback
+/ voiceGender = 0 						// 1 = female, 2 = male; Determined based on the face choosen for a block inorder to choose the appropriate feedback sound
+/ voiceSelected = 0 					// 1 = female happy voice, 2 = female disgust voice, 3 = male happy voice, 4 = male disgust voice
+/ isThisTrialPractice = 1 				// 1 = pratice block and 2 = actual experiment block, used in the trials to choose if it is a practice block 
+/ trialCounter = 0						// In each block trials are counted to stop the block when the trialCounter reaches numTrialEachBlock
+/ experimentName = "Reversal_Task"
+/ responseName = ""						// Used to save instead the name like "space" or "none" instead of keyboard scancodes used by Inquisit
+/ responseTime = ""						// When space is pressed the time of response after stimulus presentation, NA if no response was given
+/ isResponseCorrect = 0					// +1 = if the response for a trial is correct, -1 = if the response is incorrect
+/ isFeedbackAccurate = 0				// +1 = if the feedback given to participant is accurate based on their response and the block condition
+										// -1 = if the feedback given to participant is opposite what would had been the correct feedback based on their response and the block condition
+/ trial_number = 0							// +1 = if SIS (social influence score) goes up, feedback shown = up arrow;
+										// 0 = if SIS remains constant wrt previous trial, feedback shown = neutral sign;
+										// -1 = if SIS decreases, feddback shown = down arrow;
+/ SIS_toFillMeterOnRightTime = 0 		// same as blockTotal_SIS, set to this value when feedback is given to match the timing of feedback and change in social influence meter
+/ numbercorrect = 0 
+/ numberoftimesleft = 0
+/ numberoftimesright = 0
+/ rightleft = "left"
+/ reversalnumber = 4
+</values>
+
+**************************************************************************************************************
+Expressions of importance
+**************************************************************************************************************
+<expressions>
+
+</expressions>
+
+**************************************************************************************************************
+Output data file columns
+**************************************************************************************************************
+<data>
+/ columns = (build,values.experimentName, subject, date, time,  																      // General information
+parameters.numTrialEachBlock, parameters.faceDuration, parameters.stimulusAndFeedbackGapDuration, parameters.ITI,     // Input parameters values
+values.blockNumber, values.blockName, expressions.faceName,															  // Block level variables		
+values.trialCounter, values.responseName, values.responseTime, values.responseAndFeedbackCategory, 
+values.isResponseCorrect, values.isFeedbackAccurate)   // Trial level variables		
+</data>
+
+<expressions>
+/ percentTrialsIncorrectFeedback_left = 1-values.percentTrialsCorrectFeedback_left
+/ percentTrialsIncorrectFeedback_right = 1-values.percentTrialsCorrectFeedback_right
+/ correctresponses = values.numbercorrect + values.isResponseCorrect 
+/ feedbackaccurate = values.responsescorrect + values.isFeedbackAccurate
+
+</expressions>
+
+**************************************************************************************************************
+Creating stimuli 
+**************************************************************************************************************
+<item Stimuli>
+// Stimuli used in trial blocks
+/ 1 = "dandelion.bmp"
+/ 2 = "pen.bmp"
+/ 3 = "kettle.bmp"
+/ 4 = "carriage.bmp"
+/ 5 = "truck.bmp"
+/ 6 = "fan.bmp"
+/ 7 = "watermelon.bmp"
+/ 8 = "skate.bmp"
+/ 9 = "binocular.bmp"
+/ 10 = "wheelbarrow.bmp"
+/ 11 = "brush.bmp"
+/ 12 = "wrench.bmp"
+/ 13 = "wrench.bmp"
+/ 14 = "house.bmp"
+/ 15 = "orange.bmp"
+/ 16 = "pear.bmp"
+/ 17 = "pinecone.bmp"
+/ 18 = "cactus.bmp"
+/ 19 = "anchor.bmp"
+/ 20 = "ship.bmp"
+/ 21 = "telescope.bmp"
+/ 22 = "globe.bmp"
+/ 23 = "leaf.bmp"
+/ 24 = "tree.bmp"
+/ 25 = "lamb.bmp"
+/ 26 = "owl.bmp"
+/ 27 = "lighthouse.bmp"
+/ 28 = "plane.bmp"
+/ 29 = "light.bmp"
+/ 30 = "clipboard.bmp"
+/ 31 = "keys.bmp"
+/ 32 = "dinosaur.bmp"
+/ 33 = "elk.bmp"
+/ 34 = "frog.bmp"
+/ 35 = "snail.bmp"
+/ 36 = "books.bmp"
+/ 37 = "car.bmp"
+/ 38 = "lightbulb.bmp"
+/ 39 = "umbrella.bmp"
+/ 40 = "sun.bmp"
+/ 41 = "clouds.bmp"
+/ 42 = "arc.bmp"
+
+</item>
+
+<picture Left>
+/ items = Stimuli
+/ position = (25, 50)
+/ size = (300, 300) // in pixels
+/ select = values.LeftStimSelected
+</picture>
+
+<picture Right>
+/ items = Stimuli
+/ position = (75, 50)
+/ size = (300, 300) // in pixels
+/ select = values.RightStimSelected
+</picture>
+
+
+<picture photoBorder_left>
+/ items = ("Photo_border.png")
+/ position = (25, 50)
+/ size = (400, 400))
+</picture>
+
+<picture photoBorder_right>
+/ items = ("Photo_border.png")
+/ position = (75, 50)
+/ size = (400, 400)
+</picture>
+
+<text leftprob>
+/items = ("<%values.percentTrialsCorrectFeedback_left%>")
+/ position = (25, 75)
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ valign = center
+/ halign = center
+</text>
+
+
+<text rightprob>
+/items = ("<%values.percentTrialsCorrectFeedback_right%>")
+/ position = (75, 75)
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ valign = center
+/ halign = center
+</text>
+
+<text lefttimes>
+/items = ("<%values.numberoftimesleft%>")
+/ position = (25, 85)
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ valign = center
+/ halign = center
+</text>
+
+<text righttimes>
+/items = ("<%values.numberoftimesright%>")
+/ position = (75, 85)
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ valign = center
+/ halign = center
+</text>
+
+
+<text trialcount>
+/items = ("trial number is <%values.trial_number%> reversal number is <%values.reversalnumber%> block number is <%values.block_number%>")
+/ position = (50, 85)
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ valign = center
+/ halign = center
+</text>
+
+**************************************************************************************************************
+Creating feedback stimuli 
+**************************************************************************************************************
+<text Correct_feedback>
+/ items = ("CORRECT")
+/ fontstyle = ("Arial", 5%, true, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+/ txcolor = green
+</text>
+
+<text Incorrect_feedback>
+/ items = ("INCORRECT")
+/ fontstyle = ("Arial", 5%, true, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+/ txcolor = red
+</text>
+
+**************************************************************************************************************
+Instructions for explanation of experiment
+**************************************************************************************************************
+<text spaceBarContinueInstructions>
+/ items = ("Press the SPACE BAR to continue.")
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<text Spacetocontinue>
+/ items = ("Press SPACE to continue")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 85%)
+/ valign = center
+/ halign = center
+/ select = sequence
+</text>
+
+<text fixation>
+/ items = ("+")
+/ fontstyle = ("Arial", 10%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<text spaceBarBeginTrial>
+/ items = ("Press the SPACEBAR when you are ready to begin!")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 80%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+
+<text Begin_task>
+/ items = welcometotask
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<item welcometotask>
+/1 = "This is the beginning of the CHOICE TASK"
+/2 = "In this game, two pictures will always appear side by side on the computer screen. Like this...."
+</item>
+
+
+<text welcometoTask>
+/ items = welcometotask
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+/ select = sequence
+</text>
+
+<item introInstructions>
+/ 1 = "In the beginning, one of the pictures will be randomly chosen as CORRECT,
+~n and one will be INCORRECT. At first you won't know which is which. 
+~n Using the computer's feedback, try to guess which picture is correct."
+
+/ 2 = "It does NOT matter on what side the picture is. 
+~nPress the X key to select the picture on the left. 
+~nPress the M key to select the picture on the right."
+
+/ 3 = "Occasionally, the computer will give you wrong feedback: 
+~n you might be told you are INCORRECT when you choose the CORRECT picture."
+
+/ 4 = "Try to pick the picture that you think has the highest chance of being correct."
+
+/ 5 = "To make the test trickier, the correct picture will change every now and then."
+
+/ 6 = "When you feel like the correct picture has changed, you should start choosing the other picture."
+
+/ 7 = "Just to be sure it makes sense, let's play a quick practice round."
+
+</item>
+
+<text introInstructions>
+/ items = introInstructions
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (90%, 90%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+/ select = values.instructionIndex
+</text>
+
+<text PracticeBlockHeader>
+/ items = ("PRACTICE BLOCK <%values.isThisTrialPractice%>")
+/ fontstyle = ("Arial", 3.5%, true, false, false, false, 5, 1)
+/ position = (50%, 10%)
+</text>
+
+<trial PracticeBlockHeader>
+/ stimulusframes = [1=PracticeBlockHeader, Spacetocontinue]
+/ correctresponse = (57)
+/ recorddata = false
+</trial>
+
+
+<text PressSide>
+/ items = ("This time, the <%values.rightleft%> stimulus will be correct. Press the <%values.rightleft%> simulus to earn a reward")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<text howyoudid>
+/ items = ("You earned <%values.numbercorrect%> points in this block!")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<text PressRight>
+/ items = ("This time, the RIGHT stimulus will be correct. Press the RIGHT simulus to earn a reward.")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<trial PressSide>
+/ stimulusframes = [1=text.PressSide, Spacetocontinue]
+/ correctresponse = (57)
+/ recorddata = false
+/ ontrialbegin = [
+	values.percentTrialsCorrectFeedback_left = 1;
+	values.percentTrialsCorrectFeedback_right= 0;
+	list.CorrectPictureLeft.reset();
+	list.CorrectPictureRight.reset();
+]
+</trial>
+
+<trial Pressright>
+/ stimulusframes = [1=text.PressRight, Spacetocontinue]
+/ correctresponse = (57)
+/ recorddata = false
+/ ontrialbegin = [
+	values.percentTrialsCorrectFeedback_left = 0;
+	values.percentTrialsCorrectFeedback_right= 1;
+	list.CorrectPictureLeft.reset();
+	list.CorrectPictureRight.reset();
+]
+</trial>
+
+<trial introInstructions>
+/ ontrialbegin = [
+	values.instructionIndex += 1;
+]
+/ stimulusframes = [1=introInstructions, spaceBarContinueInstructions]
+/ correctresponse = ( 57)
+/ recorddata = false
+/ beginresponsetime = 500
+</trial>
+
+<trial welcometoTask>
+/ stimulusframes = [1= welcometoTask, spaceBarContinueInstructions]
+/ correctresponse = ( 57)
+/ recorddata = false
+</trial>
+
+<block introInstructions>
+/ trials = [
+	1-8 = introInstructions;
+]
+/ responsemode = correct
+/ recorddata = false
+</block>
+
+**************************************************************************************************************
+Instructions for practice sessions
+**************************************************************************************************************
+<text practiceBeginInstruction>
+/ items = ("PRACTICE ROUND")
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (70%, 70%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<trial practiceBeginInstruction>
+/ stimulusframes = [1=practiceBeginInstruction, spaceBarBeginTrial]
+/ validresponse = ( 57)
+/ correctresponse = ( 57)
+/ recorddata = false
+</trial>
+
+
+**************************************************************************************************************
+Practice session block
+**************************************************************************************************************
+<trial presentation>
+/ stimulusframes = [1 = picture.Left, picture.Right]
+/ trialduration = 1500
+</trial>
+ 
+ <trial presentation_left>
+/ stimulusframes = [1 = picture.Left, picture.Right, leftprob, rightprob, lefttimes, righttimes, trialcount]
+/ validresponse = (45, 50) 
+/ correctresponse = (45)
+/ responsemode = free
+/ timeout = 2000
+/ ontrialbegin = [
+	values.rightleft = "left"
+]
+/ ontrialend = [
+		if (list.CorrectPictureLeft.nextvalue == 1) {
+			if (trial.presentation_left.response ==  45) {
+				values.responseAndFeedbackCategory = "CRCF";
+				values.isResponseCorrect = 1;
+				values.isFeedbackAccurate = 1;
+				values.numberoftimesleft = values.numberoftimesleft + 1;
+			} else {
+				values.responseAndFeedbackCategory = "IRIF";
+				values.isResponseCorrect = -1;
+				values.isFeedbackAccurate = 1;
+				values.numberoftimesright = values.numberoftimesright + 1;
+			}
+		} else if (list.CorrectPictureLeft.nextvalue == 0) {
+			if (trial.presentation_left.response ==  45) {
+				values.responseAndFeedbackCategory = "CRIF";
+				values.isResponseCorrect = 1;
+				values.isFeedbackAccurate = -1;
+				values.numberoftimesleft = values.numberoftimesleft + 1;
+			} else {
+				values.responseAndFeedbackCategory = "IRCF";
+				values.isResponseCorrect = -1;
+				values.isFeedbackAccurate = -1;
+				values.numberoftimesright = values.numberoftimesright + 1;
+			};
+		};
+		
+		if (values.isThisTrialPractice == 0){
+			values.trial_number += 1;
+		};
+]
+ 
+/ branch = [
+	if (trial.presentation_left.response ==  45){
+		trial.stimulus_selection_left;
+	} else if (trial.presentation_left.response == 50){
+        trial.stimulus_selection_right;
+	};
+]
+ </trial>
+ 
+ <trial presentation_right>
+//Bring up stim (left,right)
+//let participant choose (mouse input)
+/ stimulusframes = [1 = picture.Left, picture.Right, leftprob, rightprob, lefttimes, righttimes, trialcount]
+/ validresponse = (45, 50)  // how to get a mouse input working? match b with left, n with right"
+/ correctresponse = (50)
+/ responsemode = free
+/ timeout = 2000
+/ ontrialbegin = [
+	values.rightleft = "right"
+]
+/ ontrialend = [
+		if (list.CorrectPictureRight.nextvalue == 1) {
+			if (trial.presentation_right.response ==  50) {
+				values.responseAndFeedbackCategory = "CRCF";
+				values.isResponseCorrect = 1;
+				values.isFeedbackAccurate = 1;
+				values.numberoftimesright = values.numberoftimesright + 1;
+			} else if (trial.presentation_right.response ==  45) {
+				values.responseAndFeedbackCategory = "IRIF";
+				values.isResponseCorrect = -1;
+				values.isFeedbackAccurate = 1;
+				values.numberoftimesleft = values.numberoftimesleft + 1;
+			};
+		} else if (list.CorrectPictureRight.nextvalue == 0) {
+			if (trial.presentation_right.response ==  50) {
+				values.responseAndFeedbackCategory = "CRIF";
+				values.isResponseCorrect = 1;
+				values.isFeedbackAccurate = -1;
+				values.numberoftimesright = values.numberoftimesright + 1;
+			} else if (trial.presentation_right.response ==  45) {
+				values.responseAndFeedbackCategory = "IRCF";
+				values.isResponseCorrect = -1;
+				values.isFeedbackAccurate = -1;
+				values.numberoftimesleft = values.numberoftimesleft + 1;
+			};
+		};
+		if (values.isThisTrialPractice == 0){
+			values.trial_number += 1;
+		};
+		]
+ 
+ / branch = [
+	if (trial.presentation_right.response ==  45){
+		trial.stimulus_selection_left;
+	} else if (trial.presentation_right.response == 50){
+        trial.stimulus_selection_right;
+	};
+]		
+</trial>
+
+
+<trial stimulus_selection_left> 
+/ stimulusframes = [1 = picture.Left, picture.Right, photoBorder_left]
+/ validresponse = (noresponse)
+/ correctresponse = (noresponse)
+/ trialduration = 1000
+/ recorddata = false
+/ branch = [
+	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "IRCF") {
+		trial.feedback_correct;
+	} else if (values.responseAndFeedbackCategory == "CRIF" || values.responseAndFeedbackCategory == "IRIF") {
+		trial.feedback_incorrect;
+	};
+]
+</trial>
+
+<trial stimulus_selection_right> 
+/ stimulusframes = [1 =  picture.Left, picture.Right, photoBorder_right]
+/ validresponse = (noresponse)
+/ correctresponse = (noresponse)
+/ trialduration = 1000
+/ recorddata = false
+/ branch = [
+	if (values.responseAndFeedbackCategory == "CRCF" || values.responseAndFeedbackCategory == "IRCF") {
+		trial.feedback_correct;
+	} else if (values.responseAndFeedbackCategory == "CRIF" || values.responseAndFeedbackCategory == "IRIF") {
+		trial.feedback_incorrect;
+	};
+]
+</trial>
+
+<trial feedback_correct> 
+/ stimulusframes = [1 = picture.Left, picture.Right, text.Correct_feedback]
+/ trialduration = 1000
+/ recorddata = false
+/ ontrialbegin = [
+	values.numbercorrect += 1;
+]
+/ branch = [
+	trial.fixation
+]
+</trial>
+
+<trial feedback_incorrect> 
+/ stimulusframes = [1 = picture.Left, picture.Right, text.Incorrect_feedback]
+/ trialduration = 1000
+/ recorddata = false
+/ branch = [
+	trial.fixation
+]
+</trial>
+
+<trial fixation>
+/ stimulusframes = [1 = fixation]
+/ trialduration = 500
+/branch = [
+	if (values.responseAndFeedbackCategory == "IRIF" || values.responseAndFeedbackCategory == "IRCF") {
+		if (values.isThisTrialPractice == 1 && values.rightleft == "left") {
+			return trial.presentation_left;
+		} else if (values.isThisTrialPractice == 1 && values.rightleft == "right") {
+			return trial.presentation_right;
+			}
+	};
+	
+	if(values.isThisTrialPractice == 0 && values.rightleft == "left") {
+		if (values.trial_number == values.reversalnumber) {
+			values.percentTrialsCorrectFeedback_left = .2;
+			values.percentTrialsCorrectFeedback_right = .8;
+			return trial.presentation_right;
+		} else if (values.trial_number >= 8){
+			return trial.reset_trial;	
+		}else {
+			return trial.presentation_left;
+		}
+	} else if(values.isThisTrialPractice == 0 && values.rightleft == "right") {
+		if (values.trial_number == values.reversalnumber) {
+			values.percentTrialsCorrectFeedback_left = .8;
+			values.percentTrialsCorrectFeedback_right = .2;
+			return trial.presentation_left;
+		} else if (values.trial_number >= 8) {
+			return trial.reset_trial;	
+		} else {
+			return trial.presentation_right;
+		}
+	} 
+]
+</trial>
+
+<trial reset_trial>
+/ stimulusframes = [1 = Spacetocontinue, howyoudid]
+/ trialduration = 1500
+/ ontrialbegin = [
+	values.LeftStimSelected = rand(1, 40);
+	values.RightStimSelected = rand(1, 40);
+	if (values.RightStimSelected == values.LeftStimSelected ) {
+		values.RightStimSelected += 1;
+	};	
+]
+/ ontrialend = [
+	values.numberoftimesleft = 0;
+	values.numberoftimesright = 0;
+	values.numbercorrect = 0;
+	values.trial_number = 0;
+	values.block_number += 1;
+	values.reversalnumber = round(rand(30,50));
+	if (values.isThisTrialPractice == 1) {
+		values.percentTrialsCorrectFeedback_left = 0;
+		values.percentTrialsCorrectFeedback_right = 1;
+		list.CorrectPictureLeft.reset();
+		list.CorrectPictureRight.reset();
+	}
+	else if (values.isThisTrialPractice == 0) {
+		list.CorrectPictureRight.reset();
+		list.CorrectPictureLeft.reset();
+	};
+	
+	if (values.block_number > 4) {
+		trial.thankyoutrial;
+	}
+]
+</trial>
+
+**************************************************************************************************************
+Instructions for each experimental blocks 
+**************************************************************************************************************
+<item beginExperimentInstruction>
+/ 1 = "Great! Now that you've practiced, it's time to start the game."
+</item>
+
+<text beginExperimentInstruction>
+/ items = beginExperimentInstruction
+/ fontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (70%, 70%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+/ select = values.blockNumber
+</text>
+
+<trial beginExperimentInstruction>
+/ stimulusframes = [1=beginExperimentInstruction, spaceBarBeginTrial]
+/ correctresponse = (57)
+/ responsetime = 700
+/ recorddata = false
+/ ontrialend = [
+	values.isThisTrialPractice = 0
+]
+</trial>
+
+**************************************************************************************************************
+Blocks of trials with stimulus presentation, response and feedback for each of the 
+4 conditions - goToWin, goToAvoid, noGoToWin and noGoToAvoid
+**************************************************************************************************************
+<list CorrectPictureLeft>
+/ items = (1, 0)
+/ itemprobabilities = (values.percentTrialsCorrectFeedback_left, expressions.percentTrialsIncorrectFeedback_left)
+/ poolsize = parameters.numTrialEachBlock
+/ selectionmode = random
+</list>
+
+<list CorrectPictureRight>
+/ items = (1,0)
+/ itemprobabilities = (values.percentTrialsCorrectFeedback_right, expressions.percentTrialsIncorrectFeedback_right)
+/ poolsize = parameters.numTrialEachBlock
+/ selectionmode = random
+</list>
+
+<list reversals>
+/ items = (rand(3, 5))
+/ poolsize = 6
+/ replace = false
+</list>
+
+
+**************************************************************************************************************
+End of all trials 
+**************************************************************************************************************
+<text thankyou>
+/ items = ("Thank you for participating!")
+/ fontstyle = ("Arial", 4.5%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<text exit>
+/ items = ("Press spacebar to exit")
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+/ valign = center
+/ halign = center
+</text>
+
+<trial thankyoutrial>
+/ stimulusframes = [1 = thankyou, exit]
+/ validresponse = ( 57)
+/ correctresponse = ( 57) 
+/ beginresponseframe = 0
+/ recorddata = false
+</trial>
+
+
+<block practice_trial>
+/ onblockbegin = [
+	values.LeftStimSelected = rand(1, 40);
+	values.RightStimSelected = rand(1, 40);
+	if (values.RightStimSelected == values.LeftStimSelected ) {
+		values.RightStimSelected += 1;
+	};	
+]
+/ trials = [
+    1-2 = welcometoTask;
+	3   =  presentation;
+	4-9 = introInstructions;
+	10 =  Pressside;
+	11-13 = presentation_left; 
+	14   =  reset_trial;
+	15   =  PressRight;
+	16-18 = presentation_right;
+	19 = reset_trial; 
+	20 = beginExperimentInstruction;
+	]
+/ responsemode = correct
+/ recorddata = false
+</block>
+
+<block Experiment_block_leftstart>
+/ onblockbegin = [
+	values.percentTrialsCorrectFeedback_left = .8;
+	values.percentTrialsCorrectFeedback_right = .2;
+]
+/ trials = [
+	1 = presentation_left;
+	2 = presentation_right;
+	]
+/ responsemode = correct
+/ recorddata = false
+/ branch = [
+	if (values.trial_number > 80){
+		return trial.reset_trial;
+	}
+]
+
+</block>
+
+<block Experiment_block_rightstart>
+/ onblockbegin = [
+	values.percentTrialsCorrectFeedback_left = .2;
+	values.percentTrialsCorrectFeedback_right = .8;
+]
+/ trials = [
+	1 = presentation_right;
+	2 = presentation_left;
+	]
+/ responsemode = correct
+/ recorddata = false
+/ branch = [
+	if (values.trial_number > 8){
+		return trial.reset_trial;
+		values.block_number += 1;	
+	}
+]
+</block>
+
+<block thankyou>
+/ trials = [
+	1 = thankyoutrial;
+]
+/ responsemode = correct
+/ recorddata = false
+</block>
+**************************************************************************************************************
+Defining the sequence of blocks for the experiment
+**************************************************************************************************************
+<expt>
+/ blocks = [
+	1 = practice_trial;
+	2 = noreplace(Experiment_block_rightstart, Experiment_block_leftstart);
+	3 = noreplace(Experiment_block_rightstart, Experiment_block_leftstart);
+	4 = thankyou
+	
+]	
+</expt>
+// 
