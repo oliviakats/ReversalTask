@@ -42,7 +42,8 @@ data$total_trial_z <- scale(data$total_trialnum)
 data$prevRT_log <- lag(log(data$rt))
 ```
 
-Start with the basics: trial number
+### Base model
+Start with the basics.... should be an effect of trial number based on tidy_markdown. 
 ```{r}
 mod0 <- lmer(rt_log ~ 1 + (1|subject), data = data); summary(mod0)
 plot(fitted(mod0), residuals(mod0))
@@ -50,12 +51,17 @@ mod1 <- lmer(rt_log ~  total_trialnum + (1|subject), data = data); summary(mod1)
 resids <- residuals(mod1)
 fitted <- fitted(mod1)
 plot(fitted, resids)
-AIC(mod0)
-AIC(mod1)
-#is it worth the mlm?
+
+#note: trial_number is within-block (i.e., 1-40)
+mod1.1 <- lmer(rt_log ~  trial_number + block_number + (1|subject), data = data); summary(mod1)
+resids <- residuals(mod1.1)
+fitted <- fitted(mod1.1)
+plot(fitted, resids)
+AIC(mod0, mod1, mod1.1) #not exactly comparable
 ```
 
-previous RT
+### Adding previous RT
+Also z-score trial number
 ```{r}
 mod2 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + (1 |subject), data = data); summary(mod2) #big effects
 qqnorm(resid(mod2))
@@ -66,25 +72,33 @@ plot(mod2)
 ```
 
 
-task_phase
+### Add task_phase
+At first odd to see collinearity in trial_num and task phase, though makes sense because reversals happen after acquisitions. Maybe accounting for individual variation in trial number will help? 
+
 ```{r}
-mod3 <- lmer(rt_log ~ trial_number + block_number + prevRT_log + task_phase + (1 + trial_number |subject), data = data); 
+mod3 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + (1 |subject), data = data); 
 car::vif(mod3)
-qqnorm(resid(mod3))
 summary(mod3) #small effect - helps some
-plot(mod3)
-AIC(mod2, mod3)
+mod3.1 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + (1 + trial_z |subject), data = data); 
+car::vif(mod3.1)
+AIC(mod2, mod3, mod3.1)
 ```
 
-task_phase
+### Add Feedback (previous percieved error) and response (correct vs. incorrect current choice)
+Moderate improvements and interesting effects
 ```{r}
-mod4 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback + Response + (1 + trial_z |subject), data = data)
-
+mod4 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback + (1 + trial_z |subject), data = data)
 summary(mod4)
 AIC(mod4, mod3)
-car::vif(mod4)
-plot(mod4)
+mod4.1 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback + Response + (1 + trial_z |subject), data = data)
+mod4.2 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback*Response + (1 + trial_z |subject), data = data)
+summary(mod4.2) #
+car::vif(mod4.2)
+summary(mod4.1)
+AIC(mod4, mod4.1, mod4.2)
 ```
+
+### Experimentation with Random Effects
 
 ```{r}
 mod4.1 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response + prevFeedback + (1 + total_trial_z |subject), data = data);
@@ -94,6 +108,8 @@ plot(mod4.1)
 AIC(mod2, mod3, mod4, mod4.1)
 ```
 
+
+### Adding Random effect of previous feedback (percieved previous error)
 
 ```{r}
 mod4.2 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response + prevFeedback + (1 + total_trial_z + prevFeedback |subject), data = data);
@@ -119,6 +135,9 @@ AIC(mod4.2, mod4.3, mod4.4)
 ```
 
 
-
-
-
+```{r}
+mod4.5 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response*prevFeedback + (1 + total_trial_z + prevFeedback + prevRT_log |subject) + (1 + total_trial_z + |subject:task_phase), data = data);
+car::vif(mod4.5)
+summary(mod4.4) #small effect - helps some
+AIC(mod4.3, mod4.4, mod4.5)
+```
