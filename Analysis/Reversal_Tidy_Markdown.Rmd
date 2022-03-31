@@ -18,12 +18,12 @@ knitr::opts_chunk$set(message = FALSE)
 options(knitr.duplicate.label = "allow")
 ##Load Packages and source scripts
 pacman::p_load(tidyverse, readr, janitor, ggplot2,wesanderson, cowplot, flextable, plotly, emmeans, data.table)
-setwd("~/github_repos/PUBS_Data_Verification/")
-source("helper_scripts/Tidy_functions_PUBS.R")
+setwd("~/github_repos/ReversalTask/Analysis/")
+source("Tidy_functions_PUBS.R")
 #reversal_data_8.16 <- data.table::fread("~/github_repos/ReversalTask/Reversal_pilot_mTurk.csv", fill = TRUE)
 #load data
 #load("Reversal_Task_Cleaned.Rdata")
-reversal_data <- data.table::fread("~/github_repos/ReversalTask/data/PUBS_Batch2_R.csv", fill = TRUE) %>% group_by(subject, time) %>% filter(!subject %in% c(324215, 1))
+reversal_data <- data.table::fread("~/github_repos/ReversalTask/Data/Reversal_Task_2.18.2021.csv", fill = TRUE, stringsAsFactors = FALSE) %>% group_by(subject, time) %>% filter(!subject %in% c(324215, 1))
 
 reversal_data <- reversal_data %>% mutate(subject = ifelse(time == "18:47:13", 456, subject))
 subjects <- unique(reversal_data$subject)
@@ -39,13 +39,17 @@ trim_cols <- TRUE
 reversal_data <- data.frame(lapply(reversal_data, function(x) gsub(",", ".", x, fixed = TRUE))) 
 
 reversal <- tidy_reversal(reversal_data)
-check_tidy(reversal)
+#check_tidy(reversal)
 
 colsToConvert <- c("totalcorrect", "consecutivecorrect", "reversalnumber", "totalearnings",
-              "trial_number", "total_trialnum", "numbercorrectfeedback", "numbercorrectfeedback_block",
-              "centsearned", "trial.choice.latency")
-reversal <- reversal[, (colsToConvert) := lapply(.SD, as.numeric), .SDcols = colsToConvert]
-sapply(reversal, class)
+               "trial_number", "total_trialnum", "numbercorrectfeedback", "numbercorrectfeedback_block",
+               "centsearned", "trial.choice.latency", "block_number")
+
+ reversal <- reversal[, (colsToConvert) := lapply(.SD, as.character), .SDcols = colsToConvert]
+ reversal <- reversal[, (colsToConvert) := lapply(.SD, as.numeric), .SDcols = colsToConvert]
+ sapply(reversal, class)
+
+
 
 
 # bad <- c()
@@ -54,7 +58,6 @@ sapply(reversal, class)
 #     bad[nrow(check_tidy)] <- i
 #   }
 # }
-
 ```
 
 
@@ -125,7 +128,7 @@ colormatrix <- ifelse(obj$above_threshold == "Below", wes_palette("Cavalcanti1")
 tab <- obj %>% flextable() %>% flextable::bg(j = 1:ncol(obj), bg=colormatrix)
 
 reversal_earnings <- reversal %>% group_by(subject) %>% summarize(cents_earned = as.numeric(max(totalearnings))) %>% dplyr::rename(centsearned_r = cents_earned) %>% mutate(subject = as.numeric(subject))
-save(reversal_earnings, file = "~/github_repos/PUBS_Data_Verification/Payment/Reversal.Rdata")
+#save(reversal_earnings, file = "~/github_repos/PUBS_Data_Verification/Payment/Reversal.Rdata")
 
 sink("/dev/null")
 tab

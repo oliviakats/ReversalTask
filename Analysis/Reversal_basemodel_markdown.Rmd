@@ -1,0 +1,124 @@
+---
+title: "Base_LMERs"
+author: "Sophie Paolizzi"
+date: "2/21/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#load up
+pacman::p_load(tidyverse, sjPlot, readr, janitor, ggplot2,wesanderson, cowplot, flextable, plotly, emmeans, lme4, qualtRics, sjPlot, circular, pracma, cowplot, psych, lattice)
+##### Load Data and setwd
+ll = FALSE
+if (ll == TRUE) {
+  home_directory <- "/proj/mnhallqlab/users/sophie/ReversalTask/"
+  data_dir <- file.path(paste0(home_directory, "data/"))
+} else {
+  home_directory <- "~/github_repos/ReversalTask/"
+  data_dir <- file.path(paste0(home_directory, "Data/"))
+}
+load(file = paste0(data_dir,'base_effects_data.RData'))
+data = "only_zeros" #only_zeros
+  
+if (data == "only_zeros"){
+  data <- within_effects %>% filter(rt !=0) %>% filter(!isResponseCorrect == 0)
+  #only cuts out rts that are actually 0 (meaning people were pressing at exactly 50ms): about 394 trials. This leaves things weird-looking
+} else if(data == "over_150ms")  {
+  data <- within_effects %>% filter(rt >= 150) %>% filter(!isResponseCorrect == 0) # cuts out rts that are less than 150 (meaning people were pressing at 100ms of the stimuli being presented; These data looked the most normal) - this keeps 91% of the data in (cutting only another 400 trials or so): I don;'t want to totally lose peoplew ho are sticky, so I want to cut as little as possible
+}
+data$rt_log <- log(data$rt)
+data$rt_inv<- -1/1000*(data$rt)
+hist(data$rt)
+hist(data$rt_inv)
+hist(data$rt_log)
+range(data$rt)
+```
+
+```{r}
+plot(data$isResponseCorrect)
+data$trial_z <- scale(data$trial_number)
+data$total_trial_z <- scale(data$total_trialnum)
+data$prevRT_log <- lag(log(data$rt))
+```
+
+Start with the basics: trial number
+```{r}
+mod0 <- lmer(rt_log ~ 1 + (1|subject), data = data); summary(mod0)
+plot(fitted(mod0), residuals(mod0))
+mod1 <- lmer(rt_log ~  total_trialnum + (1|subject), data = data); summary(mod1)
+resids <- residuals(mod1)
+fitted <- fitted(mod1)
+plot(fitted, resids)
+AIC(mod0)
+AIC(mod1)
+#is it worth the mlm?
+```
+
+previous RT
+```{r}
+mod2 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + (1 |subject), data = data); summary(mod2) #big effects
+qqnorm(resid(mod2))
+AIC(mod2, mod1) #definitely worth adding prev_RT!
+mod_matrix <- as.data.frame(model.matrix(mod2))
+car::vif(mod2)
+plot(mod2)
+```
+
+
+task_phase
+```{r}
+mod3 <- lmer(rt_log ~ trial_number + block_number + prevRT_log + task_phase + (1 + trial_number |subject), data = data); 
+car::vif(mod3)
+qqnorm(resid(mod3))
+summary(mod3) #small effect - helps some
+plot(mod3)
+AIC(mod2, mod3)
+```
+
+task_phase
+```{r}
+mod4 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback + Response + (1 + trial_z |subject), data = data)
+
+summary(mod4)
+AIC(mod4, mod3)
+car::vif(mod4)
+plot(mod4)
+```
+
+```{r}
+mod4.1 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response + prevFeedback + (1 + total_trial_z |subject), data = data);
+car::vif(mod4.1)
+summary(mod4.1) #small effect - helps some
+plot(mod4.1)
+AIC(mod2, mod3, mod4, mod4.1)
+```
+
+
+```{r}
+mod4.2 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response + prevFeedback + (1 + total_trial_z + prevFeedback |subject), data = data);
+car::vif(mod4.2)
+summary(mod4.2) #small effect - helps some
+plot(mod4.2)
+AIC(mod4.1, mod4.2)
+```
+
+```{r}
+mod4.3 <- lmer(rt_log ~ total_trial_z + task_phase + prevFeedback*Response + prevRT_log + Response + prevFeedback + (1 + total_trial_z + prevRT_log |subject), data = data);
+car::vif(mod4.3)
+summary(mod4.3) #small effect - helps some
+AIC(mod4.2, mod4.3)
+plot_model(mod4.3, type = "pred", terms = c("prevFeedback", "Response"))
+```
+
+```{r}
+mod4.4 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response*prevFeedback + (1 + total_trial_z + prevFeedback + prevRT_log |subject), data = data);
+car::vif(mod4.4)
+summary(mod4.4) #small effect - helps some
+AIC(mod4.2, mod4.3, mod4.4)
+```
+
+
+
+
+
