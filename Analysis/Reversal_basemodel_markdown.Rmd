@@ -22,7 +22,7 @@ load(file = paste0(data_dir,'base_effects_data.RData'))
 data = "only_zeros" #only_zeros
   
 if (data == "only_zeros"){
-  data <- within_effects %>% filter(rt !=0) %>% filter(!isResponseCorrect == 0)
+  data <- df %>% filter(rt !=0) %>% filter(!isResponseCorrect == 0)
   #only cuts out rts that are actually 0 (meaning people were pressing at exactly 50ms): about 394 trials. This leaves things weird-looking
 } else if(data == "over_150ms")  {
   data <- within_effects %>% filter(rt >= 150) %>% filter(!isResponseCorrect == 0) # cuts out rts that are less than 150 (meaning people were pressing at 100ms of the stimuli being presented; These data looked the most normal) - this keeps 91% of the data in (cutting only another 400 trials or so): I don;'t want to totally lose peoplew ho are sticky, so I want to cut as little as possible
@@ -33,6 +33,7 @@ hist(data$rt)
 hist(data$rt_inv)
 hist(data$rt_log)
 range(data$rt)
+minfo<- list()
 ```
 
 ```{r}
@@ -45,30 +46,33 @@ data$prevRT_log <- lag(log(data$rt))
 ### Base model
 Start with the basics.... should be an effect of trial number based on tidy_markdown. 
 ```{r}
-mod0 <- lmer(rt_log ~ 1 + (1|subject), data = data); summary(mod0)
+minfo[["mod0"]] <- c(fixed="Intercept", l2="Intercept/Subject")
+mod0 <- lmer(rt_log ~ 1 + (1|subject), data = data)
 plot(fitted(mod0), residuals(mod0))
+
+minfo[["mod1"]] <- c(fixed="Total Trial", l2="Intercept/Subject")
 mod1 <- lmer(rt_log ~  total_trialnum + (1|subject), data = data); summary(mod1)
 resids <- residuals(mod1)
 fitted <- fitted(mod1)
 plot(fitted, resids)
 
 #note: trial_number is within-block (i.e., 1-40)
+minfo[["mod1.1"]] <- c(fixed="block_trial_number, block number", l2="Intercept/Subject")
 mod1.1 <- lmer(rt_log ~  trial_number + block_number + (1|subject), data = data); summary(mod1)
 resids <- residuals(mod1.1)
 fitted <- fitted(mod1.1)
 plot(fitted, resids)
-AIC(mod0, mod1, mod1.1) #not exactly comparable
+dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1) %>% autofit()
 ```
 
 ### Adding previous RT
 Also z-score trial number
 ```{r}
+minfo[["mod2"]] <- c(fixed="block_trial_number, block number, previousRT", l2="Intercept/Subject")
 mod2 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + (1 |subject), data = data); summary(mod2) #big effects
 qqnorm(resid(mod2))
 AIC(mod2, mod1) #definitely worth adding prev_RT!
-mod_matrix <- as.data.frame(model.matrix(mod2))
-car::vif(mod2)
-plot(mod2)
+
 ```
 
 
@@ -76,68 +80,83 @@ plot(mod2)
 At first odd to see collinearity in trial_num and task phase, though makes sense because reversals happen after acquisitions. Maybe accounting for individual variation in trial number will help? 
 
 ```{r}
+minfo[["mod3.1"]] <- c(fixed="block_trial_number, block number, previousRT, Task Phase", l2="Intercept, Trial_z /Subject")
 mod3 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + (1 |subject), data = data); 
 car::vif(mod3)
-summary(mod3) #small effect - helps some
 mod3.1 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + (1 + trial_z |subject), data = data); 
-car::vif(mod3.1)
-AIC(mod2, mod3, mod3.1)
+car::vif(mod3.1) #yes, seems to work
+AIC(mod2, mod3, mod3.1) #and improves our fit but a good chunk
 ```
 
 ### Add Feedback (previous percieved error) and response (correct vs. incorrect current choice)
 Moderate improvements and interesting effects
 ```{r}
+minfo[["mod4"]] <- c(fixed="block_trial_number, block number, previousRT, Task Phase, Previous Feedback", l2="Intercept, Trial_z /Subject")
 mod4 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback + (1 + trial_z |subject), data = data)
 summary(mod4)
 AIC(mod4, mod3)
-mod4.1 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback + Response + (1 + trial_z |subject), data = data)
-mod4.2 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback*Response + (1 + trial_z |subject), data = data)
-summary(mod4.2) #
-car::vif(mod4.2)
-summary(mod4.1)
-AIC(mod4, mod4.1, mod4.2)
 ```
 
 ### Experimentation with Random Effects
 
 ```{r}
-mod4.1 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response + prevFeedback + (1 + total_trial_z |subject), data = data);
-car::vif(mod4.1)
-summary(mod4.1) #small effect - helps some
-plot(mod4.1)
-AIC(mod2, mod3, mod4, mod4.1)
+minfo[["mod4.1"]] <- c(fixed="block_trial_number, block number, previousRT, Task Phase, Previous Feedback, Response", l2="Intercept, Trial_z /Subject")
+mod4.1 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback + Response + (1 + trial_z |subject), data = data)
+minfo[["mod4.0"]] <- c(fixed="block_trial_number, block number, previousRT, Task Phase, Previous Feedback*Response", l2="Intercept, Trial_z /Subject")
+mod4.0 <- lmer(rt_log ~ trial_z + block_number + prevRT_log + task_phase + prevFeedback*Response + (1 + trial_z |subject), data = data)
+
+dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod3.1, mod4, mod4.1, mod4.2) %>% autofit()
 ```
 
 
 ### Adding Random effect of previous feedback (percieved previous error)
 
 ```{r}
-mod4.2 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response + prevFeedback + (1 + total_trial_z + prevFeedback |subject), data = data);
-car::vif(mod4.2)
-summary(mod4.2) #small effect - helps some
-plot(mod4.2)
-AIC(mod4.1, mod4.2)
+minfo[["mod5"]] <- c(fixed="Total Trial, previousRT, Task Phase, Previous Feedback", l2="Intercept, Total Trial, previous Feedback /Subject")
+mod5 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + prevFeedback + (1 + total_trial_z + prevFeedback |subject), data = data);
+mod5.1 <- lmer(rt_log ~ trial_z + block_number + task_phase + prevRT_log + prevFeedback + (1 + trial_z + prevFeedback |subject), data = data);
+AIC(mod4, mod5, mod5.1)
 ```
 
 ```{r}
-mod4.3 <- lmer(rt_log ~ total_trial_z + task_phase + prevFeedback*Response + prevRT_log + Response + prevFeedback + (1 + total_trial_z + prevRT_log |subject), data = data);
-car::vif(mod4.3)
-summary(mod4.3) #small effect - helps some
-AIC(mod4.2, mod4.3)
-plot_model(mod4.3, type = "pred", terms = c("prevFeedback", "Response"))
+minfo[["mod6"]] <- c(fixed="Total Trial, previousRT, Task Phase, PrevFeedback", l2="Intercept, Total Trial,prevFeedback previousRT /Subject")
+mod6 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + prevFeedback + (1 + total_trial_z + prevFeedback + prevRT_log |subject), data = data);
 ```
 
 ```{r}
-mod4.4 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response*prevFeedback + (1 + total_trial_z + prevFeedback + prevRT_log |subject), data = data);
-car::vif(mod4.4)
-summary(mod4.4) #small effect - helps some
-AIC(mod4.2, mod4.3, mod4.4)
+minfo[["mod7"]] <- c(fixed="Total Trial, previousRT, Task Phase, Previous Feedback", l2="Intercept, Total Trial, previousRT /Subject")
+mod7 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response*prevFeedback + (1 + total_trial_z + prevRT_log |subject), data = data);
+dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod3.1, mod4, mod4.1,mod5,mod6, mod7) %>% autofit()
 ```
 
 
 ```{r}
-mod4.5 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + Response*prevFeedback + (1 + total_trial_z + prevFeedback + prevRT_log |subject) + (1 + total_trial_z + |subject:task_phase), data = data);
-car::vif(mod4.5)
-summary(mod4.4) #small effect - helps some
-AIC(mod4.3, mod4.4, mod4.5)
+minfo[["mod8"]] <- c(fixed="Total Trial, previousRT, Task Phase, Previous Feedback*Response", l2="Intercept, Total Trial, previousRT /Subject")
+mod8 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + prevFeedback + (1 + total_trial_z + prevFeedback + prevRT_log |subject) + (1 |subject:task_phase), data = data);
+car::vif(mod8)
+summary(mod8)
+plotREsim(REsim(mod8))
 ```
+
+
+
+```{r}
+minfo[["mod9"]] <- c(fixed="Total Trial, previousRT, Task Phase, Previous Feedback", l2="Intercept, Total Trial, previousRT /Subject")
+mod9 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + prevFeedback + gen + (1 + total_trial_z + prevRT_log + prevFeedback |subject) + (1 |subject:task_phase), data = data);
+summary(mod9); car::vif(mod9)
+dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod3.1, mod4, mod4.1,mod5,mod6, mod7, mod8, mod9) %>% autofit()
+
+```
+
+
+```{r}
+minfo[["mod10"]] <- c(fixed="Total Trial, previousRT, Task Phase, Previous Feedback", l2="Intercept, Total Trial, previousRT /Subject")
+mod10 <- lmer(rt_log ~ total_trial_z + task_phase + prevRT_log + prevFeedback + gen + PSWQ_Tot + PAI_AI + (1 + total_trial_z + prevRT_log + prevFeedback |subject) + (1 |subject:task_phase), data = data);
+summary(mod10); car::vif(mod10)
+dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod3.1, mod4, mod4.1,mod5,mod6, mod7, mod8, mod9, mod10) %>% autofit()
+
+```
+
+
+
+
