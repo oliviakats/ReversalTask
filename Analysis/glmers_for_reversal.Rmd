@@ -18,7 +18,7 @@ if (ll == TRUE) {
 }
 load(file = paste0(data_dir,'base_effects_data.RData'))
 
-data <- df %>% dplyr::filter(rt !=0) %>% dplyr::filter(!isResponseCorrect == 0)
+data <- df %>% dplyr::filter(rt !=0) %>% dplyr::filter(!isResponseCorrect == 0) %>% filter(subject != 270470)
 
 data$rt_log <- log(data$rt)
 data$rt_inv<- -1/1000*(data$rt)
@@ -41,11 +41,7 @@ plot(fitted(mod0), residuals(mod0))
 
 minfo[["mod1"]] <- c(fixed="Total Trial", l2="Intercept/Subject")
 mod1 <- glmer(ResponseCorrect_num ~  total_trialnum + (1|subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"),
-    nAGQ = 10); summary(mod1)
-resids <- residuals(mod1)
-fitted <- fitted(mod1)
-plot(fitted, resids)
-
+    nAGQ = 10)
 #note: trial_number is within-block (i.e., 1-40)
 minfo[["mod1.1"]] <- c(fixed="block_trial_number, block number", l2="Intercept/Subject")
 mod1.1 <- glmer(ResponseCorrect_num ~  trial_number + block_number + (1|subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"),
@@ -53,10 +49,11 @@ mod1.1 <- glmer(ResponseCorrect_num ~  trial_number + block_number + (1|subject)
 resids <- residuals(mod1.1)
 fitted <- fitted(mod1.1)
 plot(fitted, resids)
+AIC(mod0, mod1, mod1.1)
 ```
 
 ### Rescale trials
-Carry 2.1 forward, total_trial covers what we need best. Z-scoring seems appropriate. 
+Carry 2.1 forward, total_trial covers what we need best. Z-scoring within subject as well. 
 ```{r}
 minfo[["mod2"]] <- c(fixed="block_trial_z, block number", l2="Intercept/Subject")
 mod2 <- glmer(ResponseCorrect_num ~ trial_z + block_number + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"),
@@ -65,22 +62,30 @@ mod2 <- glmer(ResponseCorrect_num ~ trial_z + block_number + (1 |subject), data 
 minfo[["mod2.1"]] <- c(fixed="total_trial_z", l2="Intercept/Subject")
 mod2.1 <- glmer(ResponseCorrect_num ~ total_trial_z + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"),
     nAGQ = 10)
+
+AIC(mod2,mod2.1)
+```
+
+
+### Add in RT
+seems trial-wise RT is doing a little, but not much. 
+```{r}
+minfo[["mod3"]] <- c(fixed="total_trial_z, PrevRT", l2="Intercept/Subject")
+mod3 <- glmer(ResponseCorrect_num ~ total_trial_z + rt_log + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+AIC(mod2.1, mod3)
 ```
 
 
 ### Add in previous RT
-Big effect here; also seems trial-wise RT isn't doing much: might leave it in for a bit longer in case there are interesting interactive effects later. 
+We've got an effect here of previous RT; seems to be a relatively clear winner, 
 ```{r}
-minfo[["mod3"]] <- c(fixed="total_trial_z, PrevRT", l2="Intercept/Subject")
-mod3 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-summary(mod3)
-
 minfo[["mod3.1"]] <- c(fixed="total_trial_z, PrevRT, RT", l2="Intercept/Subject")
 mod3.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 summary(mod3.1)
 car::vif(mod3.1)
 dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod2.1, mod3, mod3.1) %>% autofit() 
 ```
+
 
 ### Task_phase
 Some clear improvement! Good news for our hypotheses re: task phase shifts
@@ -91,9 +96,8 @@ summary(mod4)
 dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod2.1, mod3, mod3.1, mod4) %>% autofit() 
 ```
 
-
 ### previous feedback (previous error, kind of)
-A previous percieved error leads to chooising the wrong stimulus on the current trial. Seems like a basic win-stay lose-switch strategy, but ignoring the probabilistic part. 
+A previous perceived error leads to choosing the wrong stimulus on the current trial. Seems like a basic win-stay lose-switch strategy, but ignoring the probabilistic part. 
 ```{r}
 minfo[["mod5"]] <- c(fixed="total_trial_z, PrevRT, task phase, previous feedback", l2="Intercept/Subject")
 mod5 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase + prevFeedback + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
@@ -101,19 +105,21 @@ summary(mod5)
 dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod2.1, mod3, mod4, mod5) %>% autofit() 
 ```
 
-
-### previous feedback (previous error, kind of)
-Clear winner in 6.1; Interaction between feedback and response
+### previous response (sort of a stickiness type deal?)
+Clear winner in 6.1; Interaction between feedback and response; starting to see some upward trends in collinearity we should watch out for. 
 ```{r}
 minfo[["mod6"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, prevFeed, prevResp", l2="Intercept/Subject")
 mod6 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase + prevFeedback + prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
 minfo[["mod6.1"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, prevFeed*prevResp", l2="Intercept/Subject")
 mod6.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase + prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+AIC(mod5, mod6, mod6.1)
+car::vif(mod6.1)
+summary(mod6.1)
 ```
 
 ### Interaction extensions and experimentation
-We see some potential here for a phase*feedback interaction, suggesting that previous feedback in the reversal block is slightly less salient. 
+We see some potential here for a phasexfeedback interaction, suggesting that previous feedback in the reversal block is slightly less salient. Also seems clear we shouldn't hope for a 3-way interaction with task phase,previous feedback, and previous response, collinearity is intense.  A phase x previous response interaction also seems to slightly improve the model fit - will be interesting to see how that shakes out in the random efffects structure.
 ```{r}
 minfo <- list()
 minfo[["mod6.2"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase*prevFeed, prevResp", l2="Intercept/Subject")
@@ -124,100 +130,18 @@ mod6.3 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task
 
 minfo[["mod6.4"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, phase*prevFeed, prevFeed*prevResp", l2="Intercept/Subject")
 mod6.4 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+summary(mod6.4)
 
-minfo[["mod6.5"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, phase*prevFeed, prevFeed*prevResp", l2="Intercept/Subject")
-mod6.5 <- glmer(ResponseCorrect_num ~ total_trial_z + rt_log + prevRT_log + task_phase + task_phase*prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) #pretty collinear
-
+minfo[["mod6.5"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase*prevFeed*prevResp", l2="Intercept/Subject")
+mod6.5 <- glmer(ResponseCorrect_num ~ total_trial_z + rt_log + prevRT_log + task_phase + task_phase*prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) #very collinear, probably not salvageable
 car::vif(mod6.5)
-summary(mod6.5)
 
 #dropping out rt_log since we aren't seeing much there. Also see if dropping out 3-way helps singularity
 minfo[["mod6.6"]] <- c(fixed="tot_trial_z, PrevRT, phase, phase*prevFeed, prevFeed*prevResp", l2="Intercept/Subject")
 mod6.6 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase*prevResponse + prevFeedback*task_phase + prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-car::vif(mod6.6)
+
+summary(mod6.6)
 
 dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod2.1, mod3, mod4, mod5, mod6, mod6.1, mod6.2, mod6.3, mod6.4, mod6.5, mod6.6) %>% autofit() 
 plot_model(mod6.6, type = "pred", terms = c("prevFeedback", "prevResponse"))
 ```
-
-### Beginning to deal with random effects
-
-```{r}
-minfo[["mod7"]] <- c(fixed="tot_trial_z, PrevRT, phase, phase*prevFeed, prevFeed*prevResp", l2="Intercept + Prev_response/Subject")
-mod7 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase*prevFeedback*prevResponse + (1  + prevResponse|subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-AIC(mod6.5, mod7)
-summary(mod7)
-car::vif(mod7)
-```
-
-### Playing around some more with Prev_response effect
-clearly a large effect of prev_resp.  in a 3-way interaction of task, prev_feedback, and prev_response to see what happened. Seeing some significant collinearity but wondering if something on the random effects side might help things out. 
-
-```{r}
-minfo[["mod7.1"]] <- c(fixed="total_trial_z, PrevRT, task phase, previous response*previous feedback", l2="Intercept + Prev_response/Subject; intercept+prevResponse/subject:task_phase")
-mod7.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase*prevFeedback*prevResponse + (1  + prevResponse|subject/task_phase), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-car::vif(mod7.1)
-
-minfo[["mod7.2"]] <- c(fixed="total_trial_z, PrevRT, task phase, prevFeedback*prevResponse*task_phase", l2="Intercept + Prev_response/subject; intercept, prevResponse /subject:task_phase")
-mod7.2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*prevResponse*task_phase + (1 + prevResponse |subject) + (0 + prevResponse|subject:task_phase), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-car::vif(mod7.3)
-summary(mod7.2)
-
-dependlab::render_flex_aictab(minfo=minfo, mod6, mod6.1, mod6.2, mod6.3, mod6.4, mod6.6, mod7, mod7.1, mod7.2) %>% autofit() 
-
-```
-
-### PrevFeedback effect
-```{r}
-
-minfo[["mod7.3"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept, Prev_response/Subject; intercept,prevResponse/subject:task_phase")
-mod7.3 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*prevResponse*task_phase + (1 + prevFeedback |subject) + (0 + prevResponse|subject:task_phase), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-
-# minfo[["mod7.4"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept, Prev_response/Subject; intercept,prevResponse/subject:task_phase")
-# mod7.4 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*prevResponse*task_phase + (0 + prevResponse + prevFeedback|subject/task_phase), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Singular
-
-# minfo[["mod7.5"]] <- c(fixed="total_trial_z, PrevRT, task phase, prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept + Prev_response/Subject; intercept,prevResponse/subject:task_phase")
-# mod7.5 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevResponse*task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (0 + prevResponse + prevFeedback |subject:task_phase), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Singular
-
-minfo[["mod7.6"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept + Prev_response + prevRT + task_phase/Subject")
-mod7.6 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*prevResponse*task_phase + (0 + prevResponse + prevRT_log |subject:task_phase), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) 
-
-minfo[["mod7.7"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept + Prev_response + prevRT + task_phase/Subject")
-mod7.7 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse |subject) + (1 |subject:task_phase) , data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) 
-
-# minfo[["mod7.8"]] <- c(fixed="total_trial_z, PrevRT, phase,  prevFeed*phase, prevFeed*prevResponse", l2="Intercept + Prev_response + prevRT /Subject, Subject/phase")
-# mod7.8 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + task_phase + rt_log |subject/task_phase) , data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) #Singular fit
-
-# minfo[["mod7.9"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeed*task_phase, prevFeed*prevResponse", l2="Intercept + Prev_response + prevRT + task_phase/Subject")
-# mod7.9 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (0 + task_phase + rt_log |subject) + (1 |subject:prevResponse) , data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) 
-
-dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod2.1, mod3, mod4, mod5, mod6, mod6.1, mod6.2, mod6.3, mod7, mod7.1, mod7.3, mod7.4,mod7.5, mod7.6, mod7.7, mod7.8) %>% autofit() 
-
-```
-
-
-
-
-
-
-
-```{r}
-
-
-mod_matrix <- as.tibble(ranef(mod7.6), names= "term")
-coefficients <- mod_matrix %>% pivot_wider(
-  names_from = c(term),
-  values_from = c(condsd, condval))
-
-coefficients <- coefficients %>% mutate(subject = grp)
-
-test <- inner_join(coef_StaySwitch_only, coef_cond_only)
-
-coeffs_all <- inner_join(coeffs_all, test)
-           
- with_coefs <- left_join(coefficients, df, by = 
-            "subject")
-             
-save(with_coefs, file = "~/github_repos/ReversalTask/Data/df_with_coefficients.RData")
-```
-

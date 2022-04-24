@@ -1,0 +1,187 @@
+---
+title: "glmers for reversal: random effects"
+author: "Sophie Paolizzi"
+date: "4/4/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+pacman::p_load(tidyverse, dplyr, sjPlot, readr, janitor, ggplot2,wesanderson, cowplot, flextable, plotly, emmeans, lme4, qualtRics, sjPlot, circular, pracma, cowplot, psych, lattice)
+##### Load Data and setwd
+ll = FALSE
+if (ll == TRUE) {
+  home_directory <- "/proj/mnhallqlab/users/sophie/ReversalTask/"
+  data_dir <- file.path(paste0(home_directory, "data/"))
+} else {
+  home_directory <- "~/github_repos/ReversalTask/"
+  data_dir <- file.path(paste0(home_directory, "Data/"))
+}
+load(file = paste0(data_dir,'base_effects_data.RData'))
+
+data <- df %>% dplyr::filter(rt !=0) %>% dplyr::filter(!isResponseCorrect == 0) %>% filter(subject != 270470)
+
+data$rt_log <- log(data$rt)
+data$rt_inv<- -1/1000*(data$rt)
+minfo<- list()
+load("~/github_repos/Cannon_Task/Analysis/lmer/glmer_mods.Rdata")
+data$ResponseCorrect_num <- data$ResponseCorrect_num %>% dplyr::recode("-1" = 0, "1" = 1)
+data$trial_z <- scale(data$trial_number)
+data$total_trial_z <- scale(data$total_trialnum)
+data$prevRT_log <- lag(log(data$rt))
+data$prevResponse<- relevel(as.factor(data$prevResponse), ref = "incorrect_response")
+data$prevFeedback<- relevel(as.factor(data$prevFeedback), ref = "incorrect_feedback")
+data$task_phase <- relevel(as.factor(data$task_phase), ref = "Acquisiton")
+```
+
+### Beginning to deal with random effects; Prev_response
+
+```{r}
+minfo[["mod0"]] <- c(fixed="tot_trial_z, PrevRT, phase*prevResp, phase*prevFeed, prevFeed*prevResp", l2="Intercept + Prev_response/Subject")
+mod0 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1  + prevResponse|subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+```
+
+
+### Testing feedback, phase, and response random effects
+```{r}
+minfo[["mod1"]] <- c(fixed="total_trial_z, PrevRT, task phase, previous response*previous feedback", l2="Intercept + Prev_response/Subject; intercept+prevResponse/subject:task_phase")
+mod1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1  + prevResponse + prevFeedback |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+minfo[["mod1.1"]] <- c(fixed="total_trial_z, PrevRT, task phase, previous response*previous feedback", l2="Intercept + Prev_response/Subject; intercept+prevResponse/subject:task_phase")
+mod1.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1  + prevResponse + prevFeedback + task_phase |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+mod1.2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + task_phase |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+summary(mod1.1)
+AIC(mod0, mod1, mod1.1, mod1.2)
+```
+
+### Testing previous feedback crossed effect
+does it make sense to have previous subject|feedback as a nested effect? Seems that this doesn't do much for us and is very correlated with the prevResponse variable...
+
+```{r}
+minfo[["mod2"]] <- c(fixed="total_trial_z, PrevRT, task phase, prevFeedback*task_phase, prevFeedback*prevRespons", l2="Intercept + Prev_response/subject; intercept, prevResponse /subject:task_phase")
+mod2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse + task_phase |subject) + (1| prevFeedback), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+mod2.0 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse + task_phase |subject) + (1| subject:prevFeedback), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+VarCorr(mod2.0)
+AIC(mod1, mod2, mod2.0)
+car::vif(mod2)
+```
+
+### Testing previous response crossed/nested effect
+Clearly, accounting for the prevresponse:prevfeedback interaction in the random effects structure is working. The most parsimonious appproach for now seems to be examining this at only a subject:prevResponse level, 
+```{r}
+mod2.01 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + task_phase |subject) + (1| prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+mod2.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + task_phase |subject) + (1| subject:prevResponse ), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+mod2.2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + task_phase |subject) + (1| subject:prevResponse ), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+mod2.3 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + task_phase | subject/prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+dependlab::check_singularity(mod2.31)
+
+mod2.31 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (0 + prevFeedback + task_phase| subject/prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+mod2.4 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + task_phase |subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+AIC(mod1, mod2, mod2.0, mod2.1, mod2.2, mod2.3, mod2.31, mod2.4)
+car::vif(mod2.4) #looks good
+VarCorr(mod2.4) # fine here too
+summary(mod2.4)
+
+minfo[["mod2.4"]] <- c(fixed="total_trial_z, PrevRT, task phase, prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept, prevFeedback/subject:prevResponse)")
+```
+
+#### Adding task phase as random effect 
+There appears to be some variance that task phase accounts for, and this seems best captured by a within-subject random slope?
+
+```{r}
+#first tried, best fitting in the end, tolerate singularity? 
+mod3 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + task_phase |subject) + (1 + prevFeedback| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+minfo[["mod3"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*task_phase, prevFeedback*prevRespons", l2="Intercept, task phase/subject; Intercept,prevFeedback/subject:prevResponse")
+
+```
+
+```{r, run = FALSE}
+#same as above
+mod3.01 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (0 + task_phase |subject) + (0 + prevFeedback| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+#checking on 3-way to see what happens
+mod3.0 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase*prevResponse + (1 + task_phase |subject) + (1+ prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+mod3.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 |subject) + (1 + prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+#maybe a crossed effect?
+mod3.2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 |task_phase) + (0 + prevFeedback | subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+dependlab::check_singularity(mod3.01)
+
+mod3.3 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 |subject:task_phase) + (0 + prevFeedback | subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+dependlab::check_singularity(mod3.01)
+
+mod3.4 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+AIC(mod2.4, mod3)
+```
+
+#### prevRT random effect
+is this worth considering? seems singular...
+```{r}
+minfo[["mod4"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept, Prev_response/Subject; intercept,prevResponse/subject:task_phase")
+mod4 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + task_phase + prevRT_log |subject) + (1 + prevFeedback| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+dependlab::check_singularity(mod4)
+AIC(mod3,mod4)
+
+```
+
+### trial random effects
+It seems 
+```{r}
+minfo[["mod5"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept, Prev_response/Subject; intercept,prevResponse/subject:task_phase")
+mod5 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + task_phase + total_trial_z |subject) + (1 + prevFeedback| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+dependlab::check_singularity(mod5)
+AIC(mod3,mod5)
+```
+
+
+```{r}
+data$age_scaled <- scale(data$age)
+mod6 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase*prevResponse + age_scaled + gen + (0 + task_phase |subject) + (1+ prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) #big ass eigenvalue
+
+mod6.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase*prevResponse + gen + (0 + task_phase + prevResponse |subject) + (1 + prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+dependlab::check_singularity(mod6.1)
+beepr::beep()
+
+mod6.2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase*prevResponse + age + (1+ prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
+AIC(mod6, mod6.1, mod6.2)
+minfo[["mod6"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept, Prev_response/Subject; intercept,prevResponse/subject:task_phase")
+dependlab::render_flex_aictab(minfo=minfo,mod0, mod1,mod2, mod2.1, mod2.4, mod3, mod3.0, mod4, mod5,mod6) %>% autofit()
+VarCorr(mod6.1)
+car::vif(mod6.1)
+```
+
+```{r}
+mod7 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase*prevResponse + gen + (1 + prevFeedback |subject) + (1 + prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+dependlab::check_singularity(mod7)
+VarCorr(mod7)
+beepr::beep()
+```
+
+
+
+
+```{r}
+mod_matrix <- as.tibble(ranef(mod3), names= "term")
+coefficients <- mod_matrix %>% pivot_wider(
+  names_from = c(term),
+  values_from = c(condsd, condval))
+
+coefficients <- coefficients %>% mutate(subject = grp)
+
+ with_coefs <- left_join(coefficients, data, by = 
+            "subject")
+             
+save(with_coefs, file = "~/github_repos/ReversalTask/Data/df_with_coefficients.RData")
+```
+

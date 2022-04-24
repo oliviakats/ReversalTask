@@ -1,0 +1,347 @@
+---
+title: "Random_effect_specification"
+author: "Sophie Paolizzi"
+date: "4/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+pacman::p_load(performance, devtools, tidyverse, nlme, sjPlot, readr, janitor, ggplot2,wesanderson, cowplot, car, merTools, flextable, plotly, emmeans, lme4, qualtRics, dependlab, sjPlot, circular, pracma, cowplot, psych, lattice, mlmRev,rstanarm)
+
+##### Load Data and setwd
+ll = FALSE
+if (ll == TRUE) {
+  home_directory <- "/proj/mnhallqlab/users/sophie/Cannon_Task/"
+  data_dir <- file.path(paste0(home_directory, "Data/"))
+} else {
+  home_directory <- "~/github_repos/ReversalTask"
+  data_dir <- file.path(paste0(home_directory, "Data/"))
+}
+load(paste0(home_directory, "/Data/df_with_coefficients.RData"))
+```
+
+### Calculate correlations between scores and random effects
+```{r cars}
+vars <- names(coefficients)
+scores <- unique(with_coefs %>% dplyr::select(any_of(vars) | contains(c("PAI", "PSWQ", "STAI", "BFAS","PID")))) %>% dplyr::select(-c(grp, grpvar, subject))
+
+vars <- vars[! vars %in% c('grp', 'grpvar', 'subject')]
+
+score_names <- colnames(with_coefs %>% dplyr::select(contains(c("PAI", "PSWQ", "STAI", "BFAS","PID")))) 
+
+cors <- matrix(1:(length(vars)*length(score_names)), byrow = FALSE,
+               nrow = length(vars), ncol = length(score_names),
+               dimnames = list(vars, score_names))
+
+for (i in 1:length(vars)){
+  j <- vars[i]
+    for (k in score_names){
+    tmp <- cor(scores %>% dplyr::select(paste0(j)), scores %>% dplyr::select(paste0(k)), use="na.or.complete")
+    cors[j,k] <- as.numeric(tmp)            
+    }
+  }
+
+cors_df <- as.data.frame(cors)
+
+above.2 <- as.data.frame(which(cors_df>.2,arr.ind=TRUE, useNames = TRUE))
+below.2 <- as.data.frame(which(-.2 > cors_df, arr.ind=TRUE, useNames = TRUE))
+
+cors <- cors_df %>% as.data.frame %>% tibble::rownames_to_column() %>% 
+    tidyr::pivot_longer(-rowname) %>% filter(abs(value) >.2)
+
+```
+
+### Correlation Structure between questionnaires
+```{r}
+for_questionnaire_cors <- with_coefs %>% dplyr::select(contains(cors$name))
+cor_heatmap(for_questionnaire_cors)
+
+#General Neuroticism Measures (pick best fit): BFAS_Tot, STAI_T, STAI_Tot
+#Borderline-Type Measures(pick best fit): PAI_AI, PAI_Tot, PID_emo_lab, PID_host
+#Other PID Measures: PID_perf, PID_unusual, PID_rt, PID_sus
+```
+
+### Add in Age and Sex covariates
+Appears that age doesn't do much here to help us out, but there's an effect of sex that matters.
+
+```{r}
+m8.2 <- lme(UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP, 
+                       weights=varIdent(form=~1|cond*StaySwitch_fac),
+                       random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), # l2 random slopes by 
+                                     cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)),
+                       na.action = na.exclude,
+                       data = ful_df, method='ML' )
+
+m8.2.age <- lme(UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + age, 
+                       weights=varIdent(form=~1|cond*StaySwitch_fac),
+                       random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), # l2 random slopes by 
+                                     cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)),
+                       na.action = na.exclude,
+                       data = ful_df, method='ML' )
+
+m8.2.age.sex <- lme(UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + age + sex.y, 
+                       weights=varIdent(form=~1|cond*StaySwitch_fac),
+                       random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), # l2 random slopes by 
+                                     cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)),
+                       na.action = na.exclude,
+                       data = ful_df, method='ML' )
+
+m8.2.sex <- lme(UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y, 
+                       weights=varIdent(form=~1|cond*StaySwitch_fac),
+                       random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), # l2 random slopes by 
+                                     cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)),
+                       na.action = na.exclude,
+                       data = ful_df, method='ML' )
+AIC(m8.2.sex, m8.2.age, m8.2.age.sex)
+```
+
+
+
+
+### Base Effects of individual questionnaires
+```{r}
+mod_list <- list(); mod_formulas <- list()
+for (i in 1:length(cors$col_char)){
+    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + ", cors$col_char[i]))
+    mod_formulas[[i]] <- formula(m)
+    model <- lme(mod_formulas[[i]], 
+                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
+                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
+                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
+                 na.action = na.exclude, data = ful_df, method='ML')
+  mod_list[[i]] <- model
+}
+names(mod_list) <- paste0(cors$col_char)
+
+```
+
+### Model Comparison of individual questionnaires 
+Interesting how much PID suspiciousness and unusual experiences are improving model fit. They don't seem to be exerting direct effects here, but maybe there's an interesting interactive effect?  
+```{r}
+mod_aics <- as.data.frame(names(mod_list))
+mod_aics$names <- mod_aics$`names(mod_list)`
+mod_aics$`names(mod_list)` <- NULL
+mod_aics$AICs <- NA
+mod_vec <- c()
+
+for(i in mod_list){
+  aic <- AIC(i)
+  mod_vec <- append(mod_vec, aic)
+  }
+ mod_aics$AICs <- mod_vec
+ 
+# summary(mod_list$PID_sus) #no main effect; big fit improvement
+# summary(mod_list$PID_unusual) #no main effect; fit improvement
+# summary(mod_list$PID_rt) #no main effect; fit improvement
+ 
+# summary(mod_list$PID_perf) #no main effect no fit improvement
+# summary(mod_list$BFAS_Tot) #no main effect no fit improvement
+# summary(mod_list$STAI_Tot) #no main effect no fit improvement
+# summary(mod_list$STAI_Tot) #no main effect no fit improvement
+# summary(mod_list$PID_emo_lab) #not sig; no fit improvement
+# summary(mod_list$PID_host) #no main effect no fit improvement
+# summary(mod_list$PAI_Tot) #no main effect no fit improvement
+# summary(mod_list$PAI_AI) #no main effect no fit improvement
+```
+CONCLUSION:Keep base effects of suspiciousness, unusual, and risk-taking in the model - test interactive effects of all with PEs, prev_UPs, changepoints and condition. 
+
+
+### Examining Interactions with changepoints
+```{r}
+mod_list_ixn <- list(); mod_formulas_ixn <- list()
+for (i in 1:length(cors$col_char)){
+    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + PID_sus + PID_unusual + PID_rt + StaySwitch_fac*", cors$col_char[i]))
+    mod_formulas_ixn[[i]] <- formula(m)
+    model <- lme(mod_formulas_ixn[[i]], 
+                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
+                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
+                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
+                 na.action = na.exclude, data = ful_df, method='ML')
+  x <- summary(model)
+  mod_list_ixn[[i]] <- model
+}
+names(mod_list_ixn) <- paste0(cors$col_char, "*StaySwitch_Fac")
+```
+### Model Comparison of Interactions with changepoints
+```{r}
+
+mod_aics_ixn <- as.data.frame(names(mod_list_ixn))
+mod_aics_ixn$names <- mod_aics_ixn$`names(mod_list_ixn)`
+mod_aics_ixn$`names(mod_list_ixn)` <- NULL
+mod_aics_ixn$AICs <- NA
+mod_vec_ixn <- c()
+
+for(i in mod_list_ixn){
+  aic <- AIC(i)
+  mod_vec_ixn <- append(mod_vec_ixn, aic)
+  }
+ mod_aics_ixn$AICs <- mod_vec_ixn
+ mod_aics_ixn
+```
+
+
+
+### Examining Interactions with Prediction Errors
+```{r}
+#mod_list_PE_ixn <- list(); mod_formulas_PE_ixn <- list()
+for (i in 1:length(cors$col_char)){# need to PID_host, PID_perf
+    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + PID_sus + PID_unusual + PID_rt + PEt*", cors$col_char[i]))
+    mod_formulas_PE_ixn[[i]] <- formula(m)
+    model <- lme(mod_formulas_PE_ixn[[i]], 
+                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
+                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
+                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
+                 na.action = na.exclude, data = ful_df, method='ML')
+  mod_list_PE_ixn[[i]] <- model
+}
+names(mod_list_PE_ixn) <- paste0(cors$col_char, "*PEt")
+mod_list_PE_ixn$`PID_host*PEt` <- NULL
+mod_list_PE_ixn$`PID_perf*PEt` <- NULL
+```
+
+### Model Comparison with Prediction Errors
+```{r}
+mod_aics_PE_ixn <- as.data.frame(names(mod_list_PE_ixn))
+mod_aics_PE_ixn$names <- mod_aics_PE_ixn$`names(mod_list_PE_ixn)`
+mod_aics_PE_ixn$`names(mod_list_PE_ixn)` <- NULL
+mod_aics_PE_ixn$AICs <- NA
+mod_vec_PE_ixn <- c()
+
+for(i in mod_list_PE_ixn){
+  aic <- AIC(i)
+  mod_vec_PE_ixn <- append(mod_vec_PE_ixn, aic)
+  }
+ mod_aics_PE_ixn$AICs <- mod_vec_PE_ixn
+ mod_aics_PE_ixn
+```
+
+### Look at interactions with Prediction Errors
+```{r}
+summary(mod_list_PE_ixn$`PAI_AI*PEt`) #no ixn, same fit
+summary(mod_list_PE_ixn$`PAI_Tot*PEt`) #no ixn, same fit
+summary(mod_list_PE_ixn$`PID_emo_lab*PEt`) #ixn, slightly weaker but very similar fit
+#summary(mod_list_PE_ixn$`PID_host*PEt`) #didn't converge
+summary(mod_list_PE_ixn$`BFAS_Tot*PEt`) #no ixn, same fit
+summary(mod_list_PE_ixn$`STAI_Tot*PEt`) #no ixn, same fit
+summary(mod_list_PE_ixn$`STAI_T*PEt`) #no ixn, same fit
+summary(mod_list_PE_ixn$`PID_sus*PEt`) #no ixn, same fit
+summary(mod_list_PE_ixn$`PID_unusual*PEt`) #no ixn, same fit
+summary(mod_list_PE_ixn$`PID_rt*PEt`) #no ixn, same fit
+# summary(mod_list_ixn$`PID_perf*PEt`)#didn't converge
+
+```
+
+
+
+
+### Examining Interactions with Previous Update
+```{r}
+#mod_list_prev_UP_ixn <- list(); mod_formulas_prev_UP_ixn <- list()
+for (i in 3:length(cors$col_char[1:2])){
+    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + PID_sus + PID_unusual + PID_rt + prev_UP*", cors$col_char[i]))
+    mod_formulas_prev_UP_ixn[[i]] <- formula(m)
+    model <- lme(mod_formulas_prev_UP_ixn[[i]], 
+                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
+                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
+                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
+                 na.action = na.exclude, data = ful_df, method='ML')
+  x <- summary(model)
+  mod_list_prev_UP_ixn[[i]] <- model
+}
+names(mod_list_prev_UP_ixn) <- paste0(cors$col_char, "*prev_UPt")
+mod_list_prev_UP_ixn$`PAI_Tot*prev_UPt` <- NULL
+mod_list_prev_UP_ixn$`PAI_AI*prev_UPt` <- NULL
+```
+
+### Model Comparison of interactions with Previous Updates
+```{r}
+mod_aics_prev_UP_ixn <- as.data.frame(names(mod_list_prev_UP_ixn))
+mod_aics_prev_UP_ixn$names <- mod_aics_prev_UP_ixn$`names(mod_list_prev_UP_ixn)`
+mod_aics_prev_UP_ixn$`names(mod_list_prev_UP_ixn)` <- NULL
+mod_aics_prev_UP_ixn$AICs <- NA
+mod_vec_prev_UP_ixn <- c()
+
+for(i in mod_list_prev_UP_ixn){
+  aic <- AIC(i)
+  mod_vec_prev_UP_ixn <- append(mod_vec_prev_UP_ixn, aic)
+  }
+ mod_aics_prev_UP_ixn$AICs <- mod_vec_prev_UP_ixn
+ mod_aics_prev_UP_ixn
+```
+
+### Look at interactions with Previous Updates
+```{r}
+# summary(mod_list_prev_UP_ixn$`PAI_AI*prev_UP`) #no ixn, weaker fit 
+# summary(mod_list_prev_UP_ixn$`PAI_Tot*prev_UP`) #no ixn, weaker fit
+summary(mod_list_prev_UP_ixn$`PID_emo_lab*prev_UP`) #no ixn, weaker fit
+summary(mod_list_prev_UP_ixn$`PID_host*prev_UP`) #no ixn
+summary(mod_list_prev_UP_ixn$`BFAS_Tot*prev_UP`) #no ixn, weaker fit
+summary(mod_list_prev_UP_ixn$`STAI_Tot*prev_UP`) #no ixn, weaker fit
+summary(mod_list_prev_UP_ixn$`STAI_T*prev_UP`) #no ixn, weaker fit
+summary(mod_list_prev_UP_ixn$`PID_sus*prev_UP`) #no ixn, weaker fit
+summary(mod_list_prev_UP_ixn$`PID_unusual*prev_UP`) #no ixn, weaker fit
+summary(mod_list_prev_UP_ixn$`PID_rt*prev_UP`) #no ixn, weaker fit
+# summary(mod_list_prev_UP_ixn$`PID_perf*prev_UP`) #no ixn, weaker fit
+
+```
+
+
+
+
+### Examining Interactions with condition
+```{r}
+mod_list_cond_ixn <- list()
+mod_formulas_cond_ixn <- list()
+for (i in cors$col_char){
+    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + PID_sus + PID_unusual + PID_rt cond*", i))
+    mod_formulas_cond_ixn[[i]] <- formula(m)
+    model <- lme(mod_formulas_cond_ixn[[i]], 
+                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
+                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
+                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
+                 na.action = na.exclude, data = ful_df, method='ML')
+  mod_list_cond_ixn[[i]] <- model
+}
+names(mod_list_cond_ixn) <- paste0(cors$col_char,"*cond")
+
+mod_aics_cond_ixn <- as.data.frame(names(mod_list_cond_ixn))
+mod_aics_cond_ixn$names <- mod_aics_cond_ixn$`names(mod_list_cond_ixn)`
+mod_aics_cond_ixn$`names(mod_list_cond_ixn)` <- NULL
+mod_aics_cond_ixn$AICs <- NA
+mod_vec_cond_ixn <- c()
+```
+
+
+
+### Combining all AICS to find best models
+```{r}
+mod_aics$type <- "base_effect"
+mod_aics_cond_ixn$type <- "cond_ixn"
+mod_aics_ixn$type <- "changepoint_ixn"
+mod_aics_PE_ixn$type <- "PE_ixn"
+mod_aics_prev_UP_ixn$type <- "prevUP_ixn"
+
+all_AICS <- rbind(mod_aics, mod_aics_cond_ixn, mod_aics_ixn,mod_aics_PE_ixn, mod_aics_prev_UP_ixn)
+
+all_mod_list <- c(mod_list, mod_list_cond_ixn, mod_list_ixn, mod_list_PE_ixn, mod_list_prev_UP_ixn) 
+```
+
+
+
+### Winning Model
+```{r}
+winning_mod <- lme(UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + PAI_AI*StaySwitch_fac + PID_rt + PID_sus + PID_unusual, 
+                       weights=varIdent(form=~1|cond*StaySwitch_fac),
+                       random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), # l2 random slopes by 
+                                     cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)),
+                       na.action = na.exclude,
+                       data = ful_df, method='ML' )
+summary(winning_mod)
+mixedup::extract_het_var(winning_mod, scale = 'var')
+VarCorr(winning_mod)
+AIC(winning_mod) #doesn't seem to improve fit much
+report(winning_mod)
+save(winning_mod, all_AICS, all_mod_list, cors, cors_df, ful_df, file = paste0(home_directory,  "Analysis/lmer/Individual_differences_results.RData"))
+```
+
