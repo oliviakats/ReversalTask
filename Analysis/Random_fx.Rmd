@@ -24,7 +24,7 @@ load(paste0(home_directory, "/Data/df_with_coefficients.RData"))
 ### Calculate correlations between scores and random effects
 ```{r cars}
 vars <- names(coefficients)
-scores <- unique(with_coefs %>% dplyr::select(any_of(vars) | contains(c("PAI", "PSWQ", "STAI", "BFAS","PID")))) %>% dplyr::select(-c(grp, grpvar, subject))
+scores <- unique(with_coefs %>% dplyr::select(any_of(vars) | contains(c("PAI", "PSWQ", "STAI", "BFAS","PID")))) %>% dplyr::select(-c(grpvar, subject))
 
 vars <- vars[! vars %in% c('grp', 'grpvar', 'subject')]
 
@@ -43,10 +43,6 @@ for (i in 1:length(vars)){
   }
 
 cors_df <- as.data.frame(cors)
-
-above.2 <- as.data.frame(which(cors_df>.2,arr.ind=TRUE, useNames = TRUE))
-below.2 <- as.data.frame(which(-.2 > cors_df, arr.ind=TRUE, useNames = TRUE))
-
 cors <- cors_df %>% as.data.frame %>% tibble::rownames_to_column() %>% 
     tidyr::pivot_longer(-rowname) %>% filter(abs(value) >.2)
 
@@ -62,64 +58,23 @@ cor_heatmap(for_questionnaire_cors)
 #Other PID Measures: PID_perf, PID_unusual, PID_rt, PID_sus
 ```
 
-### Add in Age and Sex covariates
-Appears that age doesn't do much here to help us out, but there's an effect of sex that matters.
-
-```{r}
-m8.2 <- lme(UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP, 
-                       weights=varIdent(form=~1|cond*StaySwitch_fac),
-                       random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), # l2 random slopes by 
-                                     cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)),
-                       na.action = na.exclude,
-                       data = ful_df, method='ML' )
-
-m8.2.age <- lme(UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + age, 
-                       weights=varIdent(form=~1|cond*StaySwitch_fac),
-                       random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), # l2 random slopes by 
-                                     cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)),
-                       na.action = na.exclude,
-                       data = ful_df, method='ML' )
-
-m8.2.age.sex <- lme(UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + age + sex.y, 
-                       weights=varIdent(form=~1|cond*StaySwitch_fac),
-                       random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), # l2 random slopes by 
-                                     cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)),
-                       na.action = na.exclude,
-                       data = ful_df, method='ML' )
-
-m8.2.sex <- lme(UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y, 
-                       weights=varIdent(form=~1|cond*StaySwitch_fac),
-                       random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), # l2 random slopes by 
-                                     cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)),
-                       na.action = na.exclude,
-                       data = ful_df, method='ML' )
-AIC(m8.2.sex, m8.2.age, m8.2.age.sex)
-```
-
-
-
-
 ### Base Effects of individual questionnaires
 ```{r}
 mod_list <- list(); mod_formulas <- list()
-for (i in 1:length(cors$col_char)){
-    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + ", cors$col_char[i]))
+cors_names <- unique(cors$name)
+for (i in 1:length(cors_names)){
+    m <- (paste0("ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase*prevResponse + gen +", cors_names[i], " + (1 + prevFeedback + task_phase| subject:prevResponse)"))
     mod_formulas[[i]] <- formula(m)
-    model <- lme(mod_formulas[[i]], 
-                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
-                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
-                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
-                 na.action = na.exclude, data = ful_df, method='ML')
+    model <- glmer(mod_formulas[[i]], data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
   mod_list[[i]] <- model
 }
-names(mod_list) <- paste0(cors$col_char)
-
+names(mod_list) <- paste0(cors_names)
+beepr::beep()
 ```
 
 ### Model Comparison of individual questionnaires 
-Interesting how much PID suspiciousness and unusual experiences are improving model fit. They don't seem to be exerting direct effects here, but maybe there's an interesting interactive effect?  
 ```{r}
-mod_aics <- as.data.frame(names(mod_list))
+mod_aics <- names(unique(mod_list))
 mod_aics$names <- mod_aics$`names(mod_list)`
 mod_aics$`names(mod_list)` <- NULL
 mod_aics$AICs <- NA
@@ -131,203 +86,100 @@ for(i in mod_list){
   }
  mod_aics$AICs <- mod_vec
  
-# summary(mod_list$PID_sus) #no main effect; big fit improvement
-# summary(mod_list$PID_unusual) #no main effect; fit improvement
-# summary(mod_list$PID_rt) #no main effect; fit improvement
+summary(mod_list$PID_callous) #no main effect no fit improvement
+summary(mod_list$PID_grnd) #no main effect no fit improvement
+#summary(mod_list$STAI_Tot) #no main effect no fit improvement - very nearly unidentifiable
+#summary(mod_list$STAI_S) #no main effect no fit improvement - very nearly unidentifiable
+summary(mod_list$PID_anh) # drops 1 subject - models are not all fitted to the same number of observations
+summary(mod_list$PID_perc_dysreg) # drops 1 subject - models are not all fitted to the same number of observations
+summary(mod_list$PID_unusual) # drops 1 subject - models are not all fitted to the same number of observations
+summary(mod_list$PID_impuls) #drops 2 subjects - models are not all fitted to the same number of observations
+summary(mod_list$PID_sus) #drops 2 subjects -models are not all fitted to the same number of observations
+summary(mod_list$PID_rt) #drops 2 subjects - models are not all fitted to the same number of observations
+summary(mod_list$PID_disinhib) #drops 2 subjects - models are not all fitted to the same number of observations
+#summary(mod_list$PID_psycho) # drops 4 subjects - models are not all fitted to the same number of observations
+
+```
+
+### Effects of task_phase
+```{r}
+mod_list_task <- list(); mod_formulas_task <- list()
+cors_names_task <- cors_names_task[! cors_names_task %in% c('STAI_Tot', 'STAI_S', 'STAI_psycho')]
+for (i in 1:length(cors_names)){
+    m <- (paste0("ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase*prevResponse + gen +task_phase*", cors_names[i], " + (1 + prevFeedback + task_phase| subject:prevResponse)"))
+    mod_formulas_task[[i]] <- formula(m)
+    model <- glmer(mod_formulas_task[[i]], data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+  mod_list_task[[i]] <- model
+}
+names(mod_list_task) <- paste0(cors_names, "*task_phase")
+beepr::beep()
+```
+
+```{r}
+mod_aics_task <- data.frame(1:12)
+mod_vec <- c(names(mod_list_task))
+mod_aics_task$names <- mod_vec
+mod_aics_task$`names(mod_list_task)` <- NULL
+mod_aics_task$AICs <- NA
+mod_vec_task <- c()
+
+for(i in mod_list_task){
+  aic <- AIC(i)
+  mod_vec_task <- append(mod_vec_task, aic)
+  }
+ mod_aics_task$AICs <- mod_vec_task
  
-# summary(mod_list$PID_perf) #no main effect no fit improvement
-# summary(mod_list$BFAS_Tot) #no main effect no fit improvement
-# summary(mod_list$STAI_Tot) #no main effect no fit improvement
-# summary(mod_list$STAI_Tot) #no main effect no fit improvement
-# summary(mod_list$PID_emo_lab) #not sig; no fit improvement
-# summary(mod_list$PID_host) #no main effect no fit improvement
-# summary(mod_list$PAI_Tot) #no main effect no fit improvement
-# summary(mod_list$PAI_AI) #no main effect no fit improvement
+summary(mod_list_task$`PID_callous*task_phase`) #no main effect no fit improvement
+summary(mod_list_task$`PID_grnd*task_phase`) #no main effect no fit improvement
+#summary(mod_list$STAI_Tot) #no main effect no fit improvement - very nearly unidentifiable
+#summary(mod_list$STAI_S) #no main effect no fit improvement - very nearly unidentifiable
+summary(mod_list_task$`PID_anh*task_phase`) # potential?
+summary(mod_list_task$`PID_perc_dysreg*task_phase`) # drops 1 subject - models are not all fitted to the same number of observations
+summary(mod_list_task$`PID_unusual*task_phase`) # drops 1 subject - models are not all fitted to the same number of observations
+summary(mod_list_task$`PID_impuls*task_phase`) #drops 2 subjects - models are not all fitted to the same number of observations
+summary(mod_list_task$`PID_sus*task_phase`) #drops 2 subjects -models are not all fitted to the same number of observations
+summary(mod_list_task$`PID_rt*task_phase`) #drops 2 subjects - models are not all fitted to the same number of observations
+summary(mod_list_task$`PID_disinhib*task_phase`) #potential
+#summary(mod_list$PID_psycho) # drops 4 subjects - models are not all fitted to the same number of observations
 ```
-CONCLUSION:Keep base effects of suspiciousness, unusual, and risk-taking in the model - test interactive effects of all with PEs, prev_UPs, changepoints and condition. 
-
-
-### Examining Interactions with changepoints
+### Effects of prevFeedback
 ```{r}
-mod_list_ixn <- list(); mod_formulas_ixn <- list()
-for (i in 1:length(cors$col_char)){
-    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + PID_sus + PID_unusual + PID_rt + StaySwitch_fac*", cors$col_char[i]))
-    mod_formulas_ixn[[i]] <- formula(m)
-    model <- lme(mod_formulas_ixn[[i]], 
-                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
-                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
-                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
-                 na.action = na.exclude, data = ful_df, method='ML')
-  x <- summary(model)
-  mod_list_ixn[[i]] <- model
+mod_list_feedback <- list(); mod_formulas_feedback <- list()
+cors_names_feedback <- cors_names[! cors_names %in% c('STAI_Tot', 'STAI_S', 'STAI_psycho')]
+for (i in 1:length(cors_names_feedback)){
+    m <- (paste0("ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase*prevResponse + gen + prevFeedback*", cors_names_feedback[i], " + (1 + prevFeedback + task_phase| subject:prevResponse)"))
+    mod_formulas_feedback[[i]] <- formula(m)
+    model <- glmer(mod_formulas_feedback[[i]], data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+  mod_list_feedback[[i]] <- model
 }
-names(mod_list_ixn) <- paste0(cors$col_char, "*StaySwitch_Fac")
-```
-### Model Comparison of Interactions with changepoints
-```{r}
+names(mod_list_feedback) <- paste0(cors_names_feedback, "*prevFeedback")
+beepr::beep()
 
-mod_aics_ixn <- as.data.frame(names(mod_list_ixn))
-mod_aics_ixn$names <- mod_aics_ixn$`names(mod_list_ixn)`
-mod_aics_ixn$`names(mod_list_ixn)` <- NULL
-mod_aics_ixn$AICs <- NA
-mod_vec_ixn <- c()
+mod_aics_feedback <- data.frame(1:10)
+mod_vec <- c(names(mod_list_feedback))
+mod_aics_feedback$names <- mod_vec
+mod_aics_feedback$`names(mod_list_feedback)` <- NULL
+mod_aics_feedback$AICs <- NA
+mod_vec_feedback <- c()
 
-for(i in mod_list_ixn){
+for(i in mod_list_feedback){
   aic <- AIC(i)
-  mod_vec_ixn <- append(mod_vec_ixn, aic)
+  mod_vec_feedback <- append(mod_vec_feedback, aic)
   }
- mod_aics_ixn$AICs <- mod_vec_ixn
- mod_aics_ixn
-```
+ mod_aics_feedback$AICs <- mod_vec_feedback
 
-
-
-### Examining Interactions with Prediction Errors
-```{r}
-#mod_list_PE_ixn <- list(); mod_formulas_PE_ixn <- list()
-for (i in 1:length(cors$col_char)){# need to PID_host, PID_perf
-    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + PID_sus + PID_unusual + PID_rt + PEt*", cors$col_char[i]))
-    mod_formulas_PE_ixn[[i]] <- formula(m)
-    model <- lme(mod_formulas_PE_ixn[[i]], 
-                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
-                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
-                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
-                 na.action = na.exclude, data = ful_df, method='ML')
-  mod_list_PE_ixn[[i]] <- model
-}
-names(mod_list_PE_ixn) <- paste0(cors$col_char, "*PEt")
-mod_list_PE_ixn$`PID_host*PEt` <- NULL
-mod_list_PE_ixn$`PID_perf*PEt` <- NULL
-```
-
-### Model Comparison with Prediction Errors
-```{r}
-mod_aics_PE_ixn <- as.data.frame(names(mod_list_PE_ixn))
-mod_aics_PE_ixn$names <- mod_aics_PE_ixn$`names(mod_list_PE_ixn)`
-mod_aics_PE_ixn$`names(mod_list_PE_ixn)` <- NULL
-mod_aics_PE_ixn$AICs <- NA
-mod_vec_PE_ixn <- c()
-
-for(i in mod_list_PE_ixn){
-  aic <- AIC(i)
-  mod_vec_PE_ixn <- append(mod_vec_PE_ixn, aic)
-  }
- mod_aics_PE_ixn$AICs <- mod_vec_PE_ixn
- mod_aics_PE_ixn
-```
-
-### Look at interactions with Prediction Errors
-```{r}
-summary(mod_list_PE_ixn$`PAI_AI*PEt`) #no ixn, same fit
-summary(mod_list_PE_ixn$`PAI_Tot*PEt`) #no ixn, same fit
-summary(mod_list_PE_ixn$`PID_emo_lab*PEt`) #ixn, slightly weaker but very similar fit
-#summary(mod_list_PE_ixn$`PID_host*PEt`) #didn't converge
-summary(mod_list_PE_ixn$`BFAS_Tot*PEt`) #no ixn, same fit
-summary(mod_list_PE_ixn$`STAI_Tot*PEt`) #no ixn, same fit
-summary(mod_list_PE_ixn$`STAI_T*PEt`) #no ixn, same fit
-summary(mod_list_PE_ixn$`PID_sus*PEt`) #no ixn, same fit
-summary(mod_list_PE_ixn$`PID_unusual*PEt`) #no ixn, same fit
-summary(mod_list_PE_ixn$`PID_rt*PEt`) #no ixn, same fit
-# summary(mod_list_ixn$`PID_perf*PEt`)#didn't converge
+  
+summary(mod_list_feedback$`PID_callous*prevFeedback`) #no main effect no fit improvement
+summary(mod_list_feedback$`PID_grnd*prevFeedback`) #no main effect no fit improvement
+summary(mod_list_feedback$`PID_anh*prevFeedback`) # potential?
+summary(mod_list_feedback$`PID_perc_dysreg*prevFeedback`) # drops 1 subject - models are not all fitted to the same number of observations
+summary(mod_list_feedback$`PID_unusual*prevFeedback`) # drops 1 subject - models are not all fitted to the same number of observations
+summary(mod_list_feedback$`PID_impuls*prevFeedback`) #drops 2 subjects - models are not all fitted to the same number of observations
+summary(mod_list_feedback$`PID_sus*prevFeedback`) #drops 2 subjects -models are not all fitted to the same number of observations
+summary(mod_list_feedback$`PID_rt*prevFeedback`) #drops 2 subjects - models are not all fitted to the same number of observations
+summary(mod_list_feedback$`PID_disinhib*prevFeedback`) #potential
 
 ```
-
-
-
-
-### Examining Interactions with Previous Update
-```{r}
-#mod_list_prev_UP_ixn <- list(); mod_formulas_prev_UP_ixn <- list()
-for (i in 3:length(cors$col_char[1:2])){
-    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + PID_sus + PID_unusual + PID_rt + prev_UP*", cors$col_char[i]))
-    mod_formulas_prev_UP_ixn[[i]] <- formula(m)
-    model <- lme(mod_formulas_prev_UP_ixn[[i]], 
-                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
-                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
-                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
-                 na.action = na.exclude, data = ful_df, method='ML')
-  x <- summary(model)
-  mod_list_prev_UP_ixn[[i]] <- model
-}
-names(mod_list_prev_UP_ixn) <- paste0(cors$col_char, "*prev_UPt")
-mod_list_prev_UP_ixn$`PAI_Tot*prev_UPt` <- NULL
-mod_list_prev_UP_ixn$`PAI_AI*prev_UPt` <- NULL
-```
-
-### Model Comparison of interactions with Previous Updates
-```{r}
-mod_aics_prev_UP_ixn <- as.data.frame(names(mod_list_prev_UP_ixn))
-mod_aics_prev_UP_ixn$names <- mod_aics_prev_UP_ixn$`names(mod_list_prev_UP_ixn)`
-mod_aics_prev_UP_ixn$`names(mod_list_prev_UP_ixn)` <- NULL
-mod_aics_prev_UP_ixn$AICs <- NA
-mod_vec_prev_UP_ixn <- c()
-
-for(i in mod_list_prev_UP_ixn){
-  aic <- AIC(i)
-  mod_vec_prev_UP_ixn <- append(mod_vec_prev_UP_ixn, aic)
-  }
- mod_aics_prev_UP_ixn$AICs <- mod_vec_prev_UP_ixn
- mod_aics_prev_UP_ixn
-```
-
-### Look at interactions with Previous Updates
-```{r}
-# summary(mod_list_prev_UP_ixn$`PAI_AI*prev_UP`) #no ixn, weaker fit 
-# summary(mod_list_prev_UP_ixn$`PAI_Tot*prev_UP`) #no ixn, weaker fit
-summary(mod_list_prev_UP_ixn$`PID_emo_lab*prev_UP`) #no ixn, weaker fit
-summary(mod_list_prev_UP_ixn$`PID_host*prev_UP`) #no ixn
-summary(mod_list_prev_UP_ixn$`BFAS_Tot*prev_UP`) #no ixn, weaker fit
-summary(mod_list_prev_UP_ixn$`STAI_Tot*prev_UP`) #no ixn, weaker fit
-summary(mod_list_prev_UP_ixn$`STAI_T*prev_UP`) #no ixn, weaker fit
-summary(mod_list_prev_UP_ixn$`PID_sus*prev_UP`) #no ixn, weaker fit
-summary(mod_list_prev_UP_ixn$`PID_unusual*prev_UP`) #no ixn, weaker fit
-summary(mod_list_prev_UP_ixn$`PID_rt*prev_UP`) #no ixn, weaker fit
-# summary(mod_list_prev_UP_ixn$`PID_perf*prev_UP`) #no ixn, weaker fit
-
-```
-
-
-
-
-### Examining Interactions with condition
-```{r}
-mod_list_cond_ixn <- list()
-mod_formulas_cond_ixn <- list()
-for (i in cors$col_char){
-    m <- (paste0("UPt1 ~ 1 + PEt*StaySwitch_fac*cond + prev_UP + sex.y + PID_sus + PID_unusual + PID_rt cond*", i))
-    mod_formulas_cond_ixn[[i]] <- formula(m)
-    model <- lme(mod_formulas_cond_ixn[[i]], 
-                 weights=varIdent(form=~1|cond*StaySwitch_fac), 
-                 random = list(ID = pdDiag(form = ~ 0 + PEt + prev_UP), 
-                               cond_StaySwitch_id = pdDiag(form = ~ 1 + PEt + prev_UP)), 
-                 na.action = na.exclude, data = ful_df, method='ML')
-  mod_list_cond_ixn[[i]] <- model
-}
-names(mod_list_cond_ixn) <- paste0(cors$col_char,"*cond")
-
-mod_aics_cond_ixn <- as.data.frame(names(mod_list_cond_ixn))
-mod_aics_cond_ixn$names <- mod_aics_cond_ixn$`names(mod_list_cond_ixn)`
-mod_aics_cond_ixn$`names(mod_list_cond_ixn)` <- NULL
-mod_aics_cond_ixn$AICs <- NA
-mod_vec_cond_ixn <- c()
-```
-
-
-
-### Combining all AICS to find best models
-```{r}
-mod_aics$type <- "base_effect"
-mod_aics_cond_ixn$type <- "cond_ixn"
-mod_aics_ixn$type <- "changepoint_ixn"
-mod_aics_PE_ixn$type <- "PE_ixn"
-mod_aics_prev_UP_ixn$type <- "prevUP_ixn"
-
-all_AICS <- rbind(mod_aics, mod_aics_cond_ixn, mod_aics_ixn,mod_aics_PE_ixn, mod_aics_prev_UP_ixn)
-
-all_mod_list <- c(mod_list, mod_list_cond_ixn, mod_list_ixn, mod_list_PE_ixn, mod_list_prev_UP_ixn) 
-```
-
-
 
 ### Winning Model
 ```{r}
