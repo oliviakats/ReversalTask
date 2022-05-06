@@ -145,3 +145,13 @@ summary(mod6.6)
 dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod2.1, mod3, mod4, mod5, mod6, mod6.1, mod6.2, mod6.3, mod6.4, mod6.5, mod6.6) %>% autofit() 
 plot_model(mod6.6, type = "pred", terms = c("prevFeedback", "prevResponse"))
 ```
+
+
+
+##responseandfeedbackcategory variable....
+Not working, and I don'tknow of a dummy code that lets me do a 4-way contrast... stick with 6 for now
+```{r}
+minfo[["mod7"]] <- c(fixed="tot_trial_z, PrevRT, phase, phase*prevFeed, prevFeed*prevResp", l2="Intercept/Subject")
+mod7 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + responseAndFeedbackCategory*task_phase + responseAndFeedbackCategory + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+```
+

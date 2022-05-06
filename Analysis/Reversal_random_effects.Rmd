@@ -5,6 +5,8 @@ date: "4/4/2022"
 output: html_document
 ---
 
+### Random_effects highlights: Key models. 
+
 ```{r setup, include=FALSE}
 pacman::p_load(tidyverse, dplyr, sjPlot, readr, janitor, ggplot2,wesanderson, cowplot, flextable, plotly, emmeans, lme4, qualtRics, sjPlot, circular, pracma, cowplot, psych, lattice)
 ##### Load Data and setwd
@@ -33,11 +35,11 @@ data$prevFeedback<- relevel(as.factor(data$prevFeedback), ref = "incorrect_feedb
 data$task_phase <- relevel(as.factor(data$task_phase), ref = "Acquisiton")
 ```
 
-### Beginning to deal with random effects; Prev_response
-Reduces AIC from base model; adding in at end of prev model
+### Beginning to deal with random effects; Four-way model
+Clearly not going to work... 
 ```{r}
-minfo[["mod0"]] <- c(fixed="tot_trial_z, PrevRT, phase*prevResp, phase*prevFeed, prevFeed*prevResp", l2="Intercept + Prev_response/Subject")
-mod0 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1  + prevResponse|subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+minfo[["mod0"]] <- c(fixed="tot_trial_z, PrevRT, phase*prevFeed, prevFeed*prevResp", l2="Intercept + Prev_response/Subject")
+mod0 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1  + responseAndFeedbackCategory|subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 ```
 
 ### Testing feedback, phase, and response random effects
@@ -50,14 +52,13 @@ minfo[["mod1.1"]] <- c(fixed="total_trial_z, PrevRT, task phase, prevFeedback*ta
 mod1.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1  + prevResponse + prevFeedback + task_phase |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
 AIC(mod0, mod1, mod1.1)
-
-summary(mod1.1) #noticing heavy correlation w prevResponse effect?
+summary(mod1.1) #noticing heavy correlation w prevResponse effect? Not sure how to handle
 car::vif(mod1.1) #not bad
 
 ```
 
 ### Testing previous feedback crossed effect
-does it make sense to have previous feedback crossed effect or subject|feedback as a nested effect? Seems that this doesn't do much for us and is very correlated with the prevResponse variable...
+does it make sense to have previous feedback crossed effect or subject|feedback as a nested effect? Seems that this doesn't do much for us and is still very correlated with the prevResponse variable...
 
 ```{r}
 minfo[["mod2.0"]] <- c(fixed="total_trial_z, PrevRT, task phase, prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept + Prev_response/subject; intercept, prevResponse /subject:task_phase")
@@ -70,7 +71,7 @@ car::vif(mod2)
 ```
 
 ### Testing previous response crossed/nested effect
-Clearly, accounting for the prevresponse:prevfeedback interaction in the random effects structure is working. The most parsimonious appproach for now seems to be examining this at only a subject:prevResponse level, 
+Clearly, accounting for the prevresponse and prevfeedback effects in the random effects structure is working. The most parsimonious approach for now seems to be examining this at only a subject:prevResponse level. So, there is something special happened with correct vs. incorrect responses 
 ```{r}
 mod2.01 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + task_phase |subject) + (1| prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) #singular
 
@@ -93,12 +94,21 @@ summary(mod2.4)
 minfo[["mod2.4"]] <- c(fixed="total_trial_z, PrevRT, task phase, prevFeedback*task_phase, prevFeedback*prevResponse", l2="Intercept, prevFeedback/subject:prevResponse)")
 ```
 
-#### Adding task phase as random effect 
-There appears to be some variance that task phase accounts for, and this seems best captured by a within-subject random slope?
+#### Playing with task phase
+There appears to be some variance that task phase accounts for, and this seems best captured by a within-subject random slope, rather than a nested effect? Seems weird.
 
 ```{r}
 #first tried, best fitting in the end, tolerate singularity? 
 mod3 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + task_phase |subject) + (1 + prevFeedback| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) #singular
+
+#singular, not super helpful/additive
+mod3.0 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 |task_phase) + (1 + prevFeedback| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) #singular
+
+#how does this do?
+mod3.0 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback*prevResponse | subject:task_phase), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) #singular
+
+#this seems to be the same effect
+mod3.01 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 ) + (1 + prevFeedback+prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) #singular
 
 minfo[["mod3"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*task_phase, prevFeedback*prevRespons", l2="Intercept, task phase/subject; Intercept,prevFeedback/subject:prevResponse")
 
@@ -108,12 +118,9 @@ minfo[["mod3"]] <- c(fixed="total_trial_z, PrevRT, task phase,  prevFeedback*tas
 #same as above
 mod3.01 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (0 + task_phase |subject) + (0 + prevFeedback| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) #singular
 
-#checking on 3-way to see what happens
-mod3.0 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase*prevResponse + (1 + task_phase |subject) + (1+ prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) #singular
-
 mod3.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 |subject) + (1 + prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) #singular
 
-#maybe a crossed effect?
+#maybe a crossed effect? - asingular, don't use
 mod3.2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 |task_phase) + (0 + prevFeedback | subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa")) 
 dependlab::check_singularity(mod3.01)
 
@@ -123,7 +130,7 @@ dependlab::check_singularity(mod3.01) #not singular
 mod3.4 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + task_phase| subject:prevResponse), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
 AIC(mod2.4, mod3, mod3.4, mod3.3)
-VarCorr(mod3) #singular task_phase
+VarCorr(mod3.0) #singular task_phase
 VarCorr(mod2.4) #way better correlation structure - maybe worth carrying forward
 ```
 
@@ -145,7 +152,7 @@ dependlab::check_singularity(mod5)
 AIC(mod2.4, mod5)
 ```
 #Check on age and sex effects before sending to ranef/individual differences. 
-Like in the cannon data, seems 
+Like in the cannon data, seems gen does the most work here. 
 ```{r}
 data$age_scaled <- scale(data$age)
 #just trying to see if we can get away with 3-way interaction once other things are accounted for
@@ -173,7 +180,7 @@ mod7 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + task_phase + pr
 dependlab::check_singularity(mod7)
 VarCorr(mod7)
 car::vif(mod7)
-beepr::beep()
+#beepr::beep()
 ```
 
 
