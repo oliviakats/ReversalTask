@@ -53,7 +53,7 @@ AIC(mod0, mod1, mod1.1)
 ```
 
 ### Rescale trials
-Carry 2.1 forward, total_trial covers what we need best. Z-scoring within subject as well. 
+Carry 2.1 forward, total_trial covers what we need best. Scaling variables within subject as well. 
 ```{r}
 minfo[["mod2"]] <- c(fixed="block_trial_z, block number", l2="Intercept/Subject")
 mod2 <- glmer(ResponseCorrect_num ~ trial_z + block_number + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"),
@@ -64,6 +64,7 @@ mod2.1 <- glmer(ResponseCorrect_num ~ total_trial_z + (1 |subject), data = df, f
     nAGQ = 10)
 
 AIC(mod2,mod2.1)
+summary(mod2.1)
 ```
 
 
@@ -73,6 +74,7 @@ seems trial-wise RT is doing a little, but not much.
 minfo[["mod3"]] <- c(fixed="total_trial_z, PrevRT", l2="Intercept/Subject")
 mod3 <- glmer(ResponseCorrect_num ~ total_trial_z + rt_log + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 AIC(mod2.1, mod3)
+
 ```
 
 
@@ -101,7 +103,7 @@ A previous perceived error leads to choosing the wrong stimulus on the current t
 ```{r}
 minfo[["mod5"]] <- c(fixed="total_trial_z, PrevRT, task phase, previous feedback", l2="Intercept/Subject")
 mod5 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase + prevFeedback + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-summary(mod5)
+car::Anova(mod5, type = 3)
 dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod2.1, mod3, mod4, mod5) %>% autofit() 
 ```
 
@@ -115,7 +117,6 @@ minfo[["mod6.1"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, prevFeed*prevResp"
 mod6.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase + prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 AIC(mod5, mod6, mod6.1)
 car::vif(mod6.1)
-summary(mod6.1)
 ```
 
 ### Interaction extensions and experimentation

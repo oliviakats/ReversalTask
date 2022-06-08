@@ -4,9 +4,36 @@ author: "Sophie Paolizzi"
 date: "5/6/2022"
 output: html_document
 ---
-### Hypotheses 
 
-A. In a serial reversal task, there will be a relationship between more severe BPD symptoms (as indexed by the PAI-BOR) and relatively faster detection of contingency reversals, as indicated by fewer incorrect responses post-reversal. These learners will also be less likely to choose the same option consistently across the blocks. 
+### Markdown Purpose and Content
+
+This markdown follows the model selection procedure for the reversal task from the base model through the random effects structure. 
+
+### Variables at Play
+**ResponseCorrect_num**. Outcome variable: whether participants selected the outcome with a higher probabilistic change of accuracy.
+
+**prevRT_log**. Reaction time in previous trial. 
+
+**rt_log**. Reaction time of current trial. 
+
+**block_number**. block number (1-5) of the task. 
+
+**trial**. Within-trial block number.
+
+**Total-trial**. number of trials across blocks in the task.
+
+**Task Phase**. Reversal vs. Acquisition.
+
+**Previous Response**. The response participants selected on the previous trial. 
+
+**Previous Feedback**. Feedback recieved from the previous trial - importantly, this is prbabilistic.
+
+**ResponseandFeedbackCategory**. There are 4 possible outcomes combining previous response and previous feedback on any given trial. A participant could respond correctly and recieve congruent feedback (CRCF; correct resp, feedback = "correct"); they could response incorrectly and receieve congruent feedback (IRCF; incorrect resp, feedback = "incorrect"); they could respond correctly and recieve incongruent feedback (CRIF; correct resp, feedback = "incorrect"); or they could respond incorrectly and recieve incorrect feedback (IRIF; incorrect resp, feedback = "correct"). 
+
+### Hypotheses 
+As a reminder, here are the hypotheses at play:
+
+A. In a serial reversal task, there will be a relationship between heightened BPD symptoms (as indexed by the PAI-BOR) and relatively faster detection of contingency reversals, as indicated by fewer incorrect responses post-reversal. These learners will also be less likely to choose the same option consistently across the blocks. 
 B.  In a serial reversal task, higher scores on the PSWQ will be associated with relatively slower detection of reversing reward contingencies; Participants with higher PSWQ scores will tend to be consistent in their choices and experience more errors (and less correct answers) in learning post-reversal. 
 
 ```{r setup, include=FALSE}
@@ -59,26 +86,22 @@ AIC(mod0, mod1, mod1.1)
 ```
 
 ### Rescale trials
-Carry 2.1 forward, total_trial covers what we need best. Z-scoring within subject as well. 
+Carry total_trial forward, it covers what we need best. Z-scoring within subject as well. 
 ```{r}
-minfo[["mod2"]] <- c(fixed="block_trial_z, block number", l2="Intercept/Subject")
-mod2 <- glmer(ResponseCorrect_num ~ trial_z + block_number + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"),
-    nAGQ = 10); summary(mod2)
-
-minfo[["mod2.1"]] <- c(fixed="total_trial_z", l2="Intercept/Subject")
-mod2.1 <- glmer(ResponseCorrect_num ~ total_trial_z + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"),
+minfo[["mod2"]] <- c(fixed="total_trial_z", l2="Intercept/Subject")
+mod2 <- glmer(ResponseCorrect_num ~ total_trial_z + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"),
     nAGQ = 10)
 
-AIC(mod2,mod2.1)
+AIC(mod2,mod1)
 ```
 
 
 ### Add in RT
-seems trial-wise RT is doing a little. 
+seems trial-wise RT is doing a little - no reason not to include.
 ```{r}
 minfo[["mod3"]] <- c(fixed="total_trial_z, PrevRT", l2="Intercept/Subject")
 mod3 <- glmer(ResponseCorrect_num ~ total_trial_z + rt_log + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-AIC(mod2.1, mod3)
+AIC(mod2, mod3)
 ```
 
 ### Add in previous RT
@@ -86,7 +109,7 @@ We've got an effect here of previous RT; seems to be a clear winner.
 ```{r}
 minfo[["mod3.1"]] <- c(fixed="total_trial_z, PrevRT, RT", l2="Intercept/Subject")
 mod3.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-AIC(mod2.1, mod3.1)
+AIC(mod3, mod3.1)
 ```
 
 
@@ -95,7 +118,7 @@ Some clear improvement! Good news for our hypotheses re: task phase shifts
 ```{r}
 minfo[["mod4"]] <- c(fixed="total_trial_z, PrevRT, RT, task phase", l2="Intercept/Subject")
 mod4 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-summary(mod4)
+car::Anova(mod4, type=3)
 AIC(mod3.1, mod4)
 ```
 
@@ -104,12 +127,12 @@ A previous perceived error leads to choosing the wrong stimulus on the current t
 ```{r}
 minfo[["mod5"]] <- c(fixed="total_trial_z, PrevRT, task phase, previous feedback", l2="Intercept/Subject")
 mod5 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase + prevFeedback + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-summary(mod5)
-dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod2.1, mod3, mod4, mod5) %>% autofit() 
+car::Anova(mod5, type = 3)
+dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod3, mod4, mod5) %>% autofit() 
 ```
 
-### previous response (sort of a stickiness type deal?)
-Clear winner in 6.1; Interaction between feedback and response. We starting to see some upward trends in collinearity we should watch out for. 
+### previous response
+I'm thinking of this as a more direct "stickiness" measure. The clear winner here is the model with an interaction between feedback and response (6.1). We starting to see some upward trends in collinearity we should watch out for. 
 ```{r}
 minfo <- list()
 minfo[["mod6"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, prevFeed, prevResp", l2="Intercept/Subject")
@@ -119,7 +142,7 @@ minfo[["mod6.1"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, prevFeed*prevResp"
 mod6.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase + prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 AIC(mod5, mod6, mod6.1)
 car::vif(mod6.1)
-summary(mod6.1)
+car::Anova(mod6.1, type = 3)
 plot_model(mod6.1, type = "pred", terms = c("prevFeedback", "prevResponse"))
 ```
 
@@ -128,105 +151,102 @@ We see some potential here for a phasexfeedback interaction, suggesting that pre
 ```{r}
 minfo[["mod6.2"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase*prevFeed, prevResp*prevFeed", l2="Intercept/Subject")
 mod6.2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log  + task_phase + task_phase*prevFeedback + prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+AIC(mod6.1, mod6.2)
+dependlab::render_flex_aictab(minfo=minfo, mod0, mod1, mod1.1, mod2, mod3, mod4, mod5, mod6, mod6.1, mod6.2) %>% autofit() 
+car::Anova(mod6.2, type = 3)
 ```
 
 ### 3-way interaction with phase, feedback, and response
 Also seems clear we shouldn't hope for a 3-way interaction with task phase, previous feedback, and previous response, collinearity is intense.  
 
 ```{r}
-#minfo[["mod6.3"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, phase*prevFeed, prevFeed*prevResp", l2="Intercept/Subject")
+minfo[["mod6.3"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, phase*prevFeed, prevFeed*prevResp", l2="Intercept/Subject")
 mod6.3 <- glmer(ResponseCorrect_num ~ total_trial_z + rt_log + prevRT_log + task_phase + task_phase*prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) #very collinear, probably not salvageable
+car::vif(mod6.3)
+car::Anova(mod6.3, type = 3)
 ```
 
 ### Decomposing 3-way interaction
-Pretty close in fit to our previous model. Maybe makes sense to carry this forward for now.
+Pretty close in fit to our previous model, but the interactions are not significant. Maybe makes sense to carry forward 6.2 for now?
 ```{r}
 minfo[["mod6.4"]] <- c(fixed="tot_trial_z, PrevRT, RT, phase, , prevResp*phase, phase*prevFeed, prevFeed*prevResp", l2="Intercept/Subject")
 mod6.4 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase*prevResponse + prevFeedback*task_phase + prevFeedback*prevResponse + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-
-dependlab::render_flex_aictab(minfo=minfo, mod6, mod6.1, mod6.2, mod6.4) %>% autofit() 
+car::Anova(mod6.4, type = 3)
+dependlab::render_flex_aictab(minfo=minfo, mod6, mod6.1, mod6.2,mod6.3, mod6.4) %>% autofit() 
 ```
 
 
 ### Attempt to understand 4-way categories: responseAndFeedbackCategory variable....
-Before we officially move in, we do have a variable that has 4 levels, but it's not working the way I'd like; I don't know of a dummy code that lets me do a 4-way contrast... we should stick with 6 for now. We can definitely say the prevresponse*prevfeeback interaction is in: the others seem like they might have potential once we start playing with random effects. 
+Before we officially move on, we do have an alternative variable that has 4 levels that sort of embodies the previousresponsexprevious feedback interaction, but it's not working the way I'd like; I don't know of a dummy code that lets me do a 4-way contrast... we should stick with 6.2 for now. We can definitely say the prevresponse*prevfeeback interaction is in: the others seem like they might have potential once we start playing with random effects. 
 ```{r}
-mod7 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + responseAndFeedbackCategory*task_phase + responseAndFeedbackCategory + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) #she's a degenerate Hessian, not worth considering. 
+# mod7 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + responseAndFeedbackCategory*task_phase + (1 |subject), data = df, family = binomial, control = glmerControl(optimizer = "bobyqa")) #she's a degenerate Hessian, not worth considering. 
 ```
 
+For now, I plan to move forward with the 2 2-way interactions of prev_feedbackxprev_response and prev_responsextask_phase 
+So some remaining questions here:
+1.) Is there something we can do to reduce collinearity and get the 3-way interaction model tractable?
 
 ### Key Random Effects
-
 **Subject**. We are interested in within-subject variation, for sure. 
-**Previous Response**. Clear "stickiness" effect of previous response - we want to know if this is heterogenous by subject
-**Previous Feedback**. Clear impact of feedback on current choice - we want to know if this is heterogenous by subject
-**Task Phase**. It is critical that we understand how the task phase manipulation palys into this. 
+
+**Previous Response**. Clear "stickiness" effect of previous response - we want to know if this is heterogenous by subject.
+
+**Previous Feedback**. Clear impact of feedback on current choice - we want to know if this is heterogenous by subject. 
+
+**Task Phase**. It is critical that we understand how the task phase manipulation plays into this. 
 
 #### Basic Random Slopes
-Seems there are worthwhile random slopes of task phase, previous response, and previous feedback. Curious whether a within-phase nesting structure makes more sense. 
+Seems there are worthwhile random slopes of task phase, previous response, and previous feedback.
 ```{r}
 minfo[["mod8a"]] <- c(fixed="tot_trial_z, PrevRT, phase*prevFeed, prevFeed*prevResp", l2="Intercept + prevResp/Subject")
-mod8a <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase*prevResponse + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+mod8a <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
 minfo[["mod8b"]] <- c(fixed="tot_trial_z, PrevRT, phase*prevFeed, prevFeed*prevResp", l2="Intercept + prevResp+prevFeed/Subject")
-mod8b <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase*prevResponse + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse + prevFeedback |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+mod8b <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse + prevFeedback |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
 minfo[["mod8c"]] <- c(fixed="tot_trial_z, PrevRT, phase*prevFeed, prevFeed*prevResp", l2="Intercept + prevResp+prevFeed+task_phase/Subject")
-mod8c <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase*prevResponse + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse + prevFeedback + task_phase |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+mod8c <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse + prevFeedback + task_phase |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
-summary(mod8c)
+car::Anova(mod8c, type = 3)
 dependlab::render_flex_aictab(minfo=minfo, mod6, mod6.1, mod6.2, mod6.4, mod8a, mod8b, mod8c) %>% autofit() 
+car::vif(mod8c)
 ```
 
 ### Examine random effects structure
-VERY clear correlations between random effects. Seems as though feedback and task phase are negatively correlated,  
+Very clear correlations between random effects. Seems as though feedback and task phase are negatively correlated,  
 ```{r}
 plot(ranef(mod8c))
+VarCorr(mod8c)
 ```
 
 ```{r}
 PrevResp_taskphase <- emmeans(mod8c, ~  prevResponse | task_phase, sigmaAdjust = c(TRUE, FALSE))
-plot(PrevFeedback_taskphase)
+plot(PrevResp_taskphase)
 ```
 
 
 ```{r}
 PrevFeedback_taskphase <- emmeans(mod8c, ~  prevFeedback | task_phase, sigmaAdjust = c(TRUE, FALSE))
-plot(PrevResp_taskphase)
+plot(PrevFeedback_taskphase)
 ```
 
 ```{r}
 prevResponse_Feedback <- emmeans(mod8c, ~   prevFeedback | prevResponse, sigmaAdjust = c(TRUE, FALSE))
 plot(prevResponse_Feedback) #if you get correct 
 ```
-
-
+#### Nested slope in task phase
+Degenerate hessian if both random slope and nested effect are present. Seem the straight random effects are the winners here. 
 ```{r}
+# mod8 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse + prevFeedback + task_phase |subject) + (1 | subject:task_phase), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+
 minfo[["mod8.1"]] <- c(fixed="tot_trial_z, PrevRT, phase*prevFeed, prevFeed*prevResp", l2="Intercept + Intercept+prevResp+prevFeed+task_phase/Subject, Intercept/Subject:task_phase")
-mod8.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase*prevResponse + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse + prevFeedback + task_phase |subject) + (1 | subject:task_phase), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
+mod8.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevResponse + prevFeedback |subject) + (1 | subject:task_phase), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
 
 VarCorr(mod8.1)
 dependlab::render_flex_aictab(minfo=minfo, mod6, mod6.1, mod6.2, mod6.4, mod8a, mod8b, mod8c, mod8.1) %>% autofit() 
 ```
 
-#### Grouping Structure including previous response
-Curious if there's an interesting within-phase effect of previous response that varies by subject. Looks like this is generating large eigenvalues. 
-```{r}
-minfo[["mod8.2"]] <- c(fixed="tot_trial_z, PrevRT, phase*prevFeed, prevFeed*prevResp", l2="Intercept + Intercept+prevResp+prevFeed+task_phase/Subject, Intercept/Subject:task_phase, Intercept/Subject:prevResp")
-mod8.2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase*prevResponse + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + prevResponse + task_phase |subject) + (1 |prevResponse:task_phase), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-VarCorr(mod8.2)
-dependlab::check_singularity(mod8.2)
+Remaining Questions:
 
-minfo[["mod8.3"]] <- c(fixed="tot_trial_z, PrevRT, phase*prevFeed, prevFeed*prevResp", l2="Intercept + Intercept+prevResp+prevFeed+task_phase/Subject, Intercept/Subject:task_phase, Intercept/Subject:prevResp")
-mod8.2 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + rt_log + task_phase*prevResponse + prevFeedback*task_phase + prevFeedback*prevResponse + (1 + prevFeedback + prevResponse + task_phase |subject) + (1 |prevFeedback/task_phase), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-VarCorr(mod8.3)
-dependlab::check_singularity(mod8.3)
-```
-
-
-#### Task Phase
-```{r}
-minfo[["mod1.1"]] <- c(fixed="total_trial_z, PrevRT, task phase, prevFeedback*task_phase, previous response*previous feedback", l2="Intercept, prevResponse, prevFeedback, task_phase/Subject")
-mod1.1 <- glmer(ResponseCorrect_num ~ total_trial_z + prevRT_log + prevFeedback*task_phase + prevFeedback*prevResponse + (1  + prevResponse + prevFeedback + task_phase |subject), data = data, family = binomial, control = glmerControl(optimizer = "bobyqa"))
-```
-
+1.) Is the amount of correlation in the random effects structure a problem? 
+2.) Is there something we can do to reduce collinearity and get the 3-way interaction model tractable?
