@@ -5,6 +5,45 @@ date: "5/6/2022"
 output: html_document
 ---
 
+#### Michael Feedback 6.08.22
+1. Have you coded a variable for trial number since reversal? I would probably code this, and -100/this to capture how accuracy scales with trials since the reversal happened. That’s close to your stated hypothesis about sensitivity to reversal.
+ - Done, added reversal sensitivty variable
+
+Is previous response the identity of the previous response (like L/R or some other factor) or is it whether the previous response was correct (basically a lagged copy of the DV)?
+If it’s the lagged copy, then this is capturing good behavior (choosing good things), but may not capture a preference for a given stimulus (that has a certain identity). Is that how you’re thinking about it?
+
+
+I am thinking that the current setup of the models is probably capturing a lot of the key variance, but in ways that are hard to interpret and lead to challenges in the ranef corrs. I would consider running models that use stimulus identity as the DV or maybe even use stay/switch as 1/0. Could you send me your data.frame? I could probably prototype a couple of thigns for comparison, even if ultimately my hunch proves not to be useful
+
+To your specific questions, I think the 3-way interaction reflects that previous choice outcome, not identity is in the interaction, so you get a lot of collinearity when people make repeated, good choices.
+
+And that probably spills over into the ranef structure, which is too correlated to be entirely trustworthy.
+
+
+
+
+
+11:24
+I’m generally thinking of models that are closer to:
+glmer(choose_A ~ prior_A * prior_reward * task_phase + (1 | subject))
+
+
+
+
+
+11:26
+But I think you should be able to arrive at the same conclusions either way. This is very parallel to the (H)DDM consideratoin of stimulus versus accuracy coding. If you wanted to stay with accuracy coding, I think it would be:
+glmer(choose_best ~ switch * prior_reward  * task_phase + (1|subject))
+
+And with the trial regressor, it’s more like
+glmer(choose_best ~ switch * prior_reward  * task_phase * stationary_trial + (1|subject))
+
+where that stationary trial is the trial number since either beginning of block (acquisitoin) or post-reversal
+
+Finally, we’ve approached these kinds of analyses before in terms of stay/switch as outcome (as mentioned above). I think this would be:
+glmer(stay ~ prior_stay * prior_reward * task_phase * stationary_trial + (1|subject))
+
+
 ### Markdown Purpose and Content
 
 This markdown follows the model selection procedure for the reversal task from the base model through the random effects structure. 

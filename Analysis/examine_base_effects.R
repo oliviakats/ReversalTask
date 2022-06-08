@@ -9,6 +9,7 @@ within_effects <- reversal %>% # dataframe of within-subject effects: this is th
          rt, #reaction time
          task_phase, #acquisition or reversal
          index_correctChoice,
+         index_incorrectChoice,
          isResponseCorrect, #acc
          isFeedbackAccurate, #did they get correct feedback
          total_trialnum,
@@ -17,6 +18,7 @@ within_effects <- reversal %>% # dataframe of within-subject effects: this is th
          block_number, #successful catch (1) or missed (1)?
          Feedback,
          Response,
+         phase_trialnum,
          responseAndFeedbackCategory,
          rightleftcorrect, # num of Trials after cp
          correctstim_name, #absolute PE on previous trial
@@ -27,13 +29,15 @@ within_effects <- reversal %>% # dataframe of within-subject effects: this is th
                fastRT = ifelse(rt <= 150, 1, 0),
                rightleftcorrect_num = as.character(rightleftcorrect),
                trial_response_num = as.character(trial_response),
+               ResponseCorrect = ifelse(rightleftcorrect == trial_response, 1, 0),
                ResponseCorrect_num = as.character(isResponseCorrect),
                FeedbackAccurate_num = as.character(isFeedbackAccurate),
+               since_reversal = -100/phase_trialnum,
                rt_log = log(rt),
                rt_inv = -1/(rt)*1000,
                Feedback = ifelse(responseAndFeedbackCategory %in% c( "CRCF", "IRCF"), "correct_feedback", "incorrect_feedback"),
                Response = ifelse(responseAndFeedbackCategory %in% c("CRCF", "CRIF"), "correct_response", "incorrect_response"),
-               prevResponse = lag(Response),#last update
+               prevResponse = ifelse(ResponseCorrect == 1, index_correctChoice, index_incorrectChoice),
                prevFeedback = lag(Feedback)) #last update
 
 within_effects <- within_effects %>% dplyr::mutate(rightleftcorrect_num = dplyr::recode(rightleftcorrect_num, "right" = 1, "left" = 2))
