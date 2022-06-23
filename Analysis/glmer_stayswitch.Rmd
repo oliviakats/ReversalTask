@@ -1,0 +1,242 @@
+---
+title: "Reversal StaySwitch Models; Fixed Effects"
+author: "Sophie Paolizzi"
+date: '2022-06-13'
+output: html_document
+---
+
+#### Michael Feedback 6.08.22
+1. Have you coded a variable for trial number since reversal? I would probably code this, and -100/this to capture how accuracy scales with trials since the reversal happened.That’s close to your stated hypothesis about sensitivity to reversal.
+- Done, added reversal sensitivity variable. I also scaled it as the difference in scales was causing convergence issues; curious if that has conceptual problems. 
+
+2. Is previous response the identity of the previous response (like L/R or some other factor) or is it whether the previous response was correct (basically a lagged copy of the DV)?
+If it’s the lagged copy, then this is capturing good behavior (choosing good things), but may not capture a preference for a given stimulus (that has a certain identity). Is that how you’re thinking about it?
+
+- this is in fact the accuracy of the previous stim. I added a stim_choice that captures the stim identity element, and lagged that as well so we can test both.
+
+3.I am thinking that the current setup of the models is probably capturing a lot of the key variance, but in ways that are hard to interpret and lead to challenges in the ranef corrs. I would consider running models that use stimulus identity as the DV or maybe even use stay/switch as 1/0. Could you send me your data.frame? I could probably prototype a couple of things for comparison, even if ultimately my hunch proves not to be useful.
+ 
+I’m generally thinking of models that are closer to:
+glmer(stim_choice ~ prior_A * prior_reward * task_phase + (1 | subject))
+
+If you wanted to stay with accuracy coding, I think it would be:
+glmer(choose_best ~ switch * prior_reward  * task_phase + (1|subject))
+
+Finally, we’ve approached these kinds of analyses before in terms of stay/switch as outcome (as mentioned above). I think this would be:
+glmer(stay ~ prior_stay * prior_reward * task_phase * stationary_trial + (1|subject))
+
+Will run each of these to see how the story changes in each set. Beginning with stim_choice, and will sub in the other DVs for the final-ish model. 
+
+4. With the trial regressor, it’s more like
+glmer(choose_best ~ switch * prior_reward  * task_phase * stationary_trial + (1|subject))
+
+where that stationary trial is the trial number since either beginning of block (acquisition) or post-reversal
+
+ - recoded the "stationary trial" as phase_trialnum, and scaled within phase due to convergence issues. 
+
+6. To your specific questions, I think the 3-way interaction reflects that previous choice outcome, not identity is in the interaction, so you get a lot of collinearity when people make repeated, good choices. And that probably spills over into the ranef structure, which is too correlated to be entirely trustworthy.
+
+Great, thanks for resolving. Makes sense to me. 
+
+### Markdown Purpose and Content
+
+This markdown follows the model selection procedure for the reversal task from the base model through the random effects structure. 
+
+### Variables at Play
+**ResponseCorrect_num**. Outcome variable: whether participants selected the outcome with a higher  (70%) probabilistic chanCe of reward.
+
+**prevrt_log**. Reaction time in previous trial. 
+
+**rt_log**. Reaction time of current trial. 
+
+**block_number**. block number (1-5) of the task. 
+
+**trial**. Within-phase trial number.
+
+**since_reversal **. Number of trials since a reversal has occurred. Also resets at the beginning of the phase, so counts beginning of block  as a "reversal". 
+
+**task_phase**. Reversal vs. Acquisition.
+
+**prev_choice**. The response participants selected on the previous trial (Acq_stim or Rev_stim). 
+
+**prevFeedback**. Feedback received from the previous trial - importantly, this is probabilistic."Correct" feedback means participants were told they were correct, where "incorrect" feedback means participants were told they were incorrect. 
+
+**ResponseandFeedbackCategory**. There are 4 possible outcomes combining previous response and previous feedback on any given trial. A participant could respond correctly and receive congruent feedback (CRCF; correct resp, feedback = "correct"); they could respond incorrectly and receieve congruent feedback (IRCF; incorrect resp, feedback = "correct"); they could respond correctly and recieve incongruent feedback (CRIF; correct resp, feedback = "incorrect"); or they could respond incorrectly and recieve incorrect feedback (IRIF; incorrect resp, feedback = "correct"). 
+
+### Hypotheses 
+As a reminder, here are the hypotheses at play:
+
+A. In a serial reversal task, there will be a relationship between heightened BPD symptoms (as indexed by the PAI-BOR) and relatively faster detection of contingency reversals, as indicated by fewer incorrect responses post-reversal. These learners will also be less likely to choose the same option consistently across the blocks. 
+B.  In a serial reversal task, higher scores on the PSWQ will be associated with relatively slower detection of reversing reward contingencies; Participants with higher PSWQ scores will tend to be consistent in their choices and experience more errors (and less correct answers) in learning post-reversal. 
+
+```{r setup, include=FALSE}
+pacman::p_load(tidyverse, dplyr, sjPlot, readr, janitor, ggplot2,wesanderson, cowplot, flextable, plotly, emmeans, lme4, qualtRics, sjPlot, circular, pracma, cowplot, psych, lattice)
+##### Load Data and setwd
+ll = FALSE
+if (ll == TRUE) {
+  home_directory <- "/proj/mnhallqlab/users/sophie/ReversalTask/"
+  data_dir <- file.path(paste0(home_directory, "data/"))
+} else {
+  home_directory <- "~/github_repos/ReversalTask/"
+  data_dir <- file.path(paste0(home_directory, "Data/"))
+}
+load(file = paste0(data_dir,'base_effects_data.RData'))
+
+data <- df %>% dplyr::filter(rt !=0) %>% dplyr::filter(!isResponseCorrect == 0) %>% filter(subject != 270470)
+
+data$rt_log <- log(data$rt)
+data$rt_inv<- -1/1000*(data$rt)
+minfo<- list()
+load("~/github_repos/Cannon_Task/Analysis/lmer/glmer_mods.Rdata")
+
+data <- data %>% 
+  mutate(trial_z = scale(trial_number),
+         total_trial_z = scale(total_trialnum),
+         task_phase = as.factor(task_phase),
+         prevFeedback = as.factor(prevFeedback),
+         phase_trialnum_z = scale(phase_trialnum),
+         since_reversal = scale(-100/phase_trialnum),
+         ResponseCorrect_num = dplyr::recode(ResponseCorrect_num, "-1" = 0, "1" = 1)) %>% 
+  group_by(subject) %>% mutate(prevResponse = as.factor(lag(Response)),
+                               prevrt_log = lag(rt_log)) %>% ungroup()
+
+
+#stim_ident
+data$stim_choice <- ifelse(data$task_phase == "Acquisiton" & data$ResponseCorrect == 1, "Acq_stim", "tmp")
+data$stim_choice <- ifelse(data$task_phase == "Reversal" & data$ResponseCorrect == 1, "Rev_stim", data$stim_choice)
+data$stim_choice <- ifelse(data$task_phase == "Reversal" & data$ResponseCorrect == 0, "Acq_stim", data$stim_choice)
+data$stim_choice <- ifelse(data$task_phase == "Acquisiton" & data$ResponseCorrect == 0, "Rev_stim", data$stim_choice)
+data$stim_choice <- as.factor(data$stim_choice)
+data$stim_choice <- relevel(data$stim_choice, ref = "Acq_stim")
+data$stim_choice_num <- as.numeric(recode(data$stim_choice, 'Acq_stim' = 0, 'Rev_stim' = 1))
+data$prev_choice <- lag(data$stim_choice)
+#random shorter things
+data$prev_choice <- lag(data$stim_choice)
+data$prev_choice <- lag(data$stim_choice)
+data$phase_early <- ifelse(data$phase_trialnum_z <0, "early", "late")
+data$StaySwitch <- as.factor(ifelse(data$stim_choice != data$prev_choice, "Switch", "Stay"))
+data$StaySwitch_lag <-lag(data$StaySwitch)
+```
+
+### Standard trial-level covariates; Trial
+According to Michael's edits and beginning analysis from a stimulus_choice perspective; starting with trial; I compared total_trial_z, or trial number across the full task and all blocks, trial_z which is the scaled, within-block trial number, and the within-phase scaled trial number. I realized trial_z is inherently going to have problems with collinearity once task_phase gets introduced, so going with phase_trialnum_z as Michael originally suggested. 
+```{r}
+minfo[["mod0"]] <- c(fixed="within-block trial number", l2="Intercept/Subject")
+mod0 <- glmer(StaySwitch ~ trial_z + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 10, data = data)
+
+minfo[["mod0.1"]] <- c(fixed="Total trial number", l2="Intercept/Subject")
+mod0.1 <- glmer(StaySwitch ~ total_trial_z + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 10, data = data)
+
+minfo[["mod0.2"]] <- c(fixed="Phase-level Trial", l2="Intercept/Subject")
+mod0.2 <- glmer(StaySwitch ~ phase_trialnum_z + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 10, data = data)
+
+
+resids <- residuals(mod0)
+fitted <- fitted(mod0)
+plot(fitted, resids)
+AIC(mod0, mod0.1, mod0.2)
+summary(mod0)
+```
+```{r}
+minfo[["mod1"]] <- c(fixed="Trial, RT", l2="Intercept/Subject")
+mod1 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 10, data = data)
+summary(mod1)
+
+minfo[["mod1.1"]] <- c(fixed="Trial, RT, prevRT", l2="Intercept/Subject")
+mod1.1 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"),
+                nAGQ = 10, data = data)
+summary(mod1.1)
+AIC(mod0, mod1, mod1.1)
+car::vif(mod1.1)
+```
+
+
+
+```{r}
+mod2 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + task_phase + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"),
+                nAGQ = 1, data = data)
+
+summary(mod2)
+
+AIC(mod1.1, mod2)
+```
+
+check out previous feedback; expect it to be huge
+```{r}
+mod3 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + task_phase + prevFeedback + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"),
+                nAGQ = 1, data = data)
+
+summary(mod3)
+
+AIC(mod3, mod2)
+```
+
+task phase effect seems clear now
+```{r}
+mod4 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + task_phase + prevFeedback + prev_choice + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+AIC(mod3, mod4)
+summary(mod4)
+car::vif(mod4)
+```
+
+```{r}
+mod5 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + task_phase + prevFeedback + since_reversal + prev_choice + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+mod5.1 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + task_phase + prevFeedback + StaySwitch_lag + since_reversal + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+mod5.2 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + task_phase + prevFeedback + prev_choice + StaySwitch_lag + since_reversal + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+mod5.3 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase + prevFeedback + prev_choice + StaySwitch_lag + since_reversal + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+AIC(mod5.1, mod5, mod5.2, mod5.3, mod6, mod6.1, mod6.2)
+car::Anova(mod6.2, type = 3)
+car::vif(mod5.3)
+```
+
+
+
+```{r}
+mod6 <- glmer(StaySwitch ~  rt_log + prevrt_log + task_phase +prev_choice + prevFeedback*StaySwitch_lag + since_reversal + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+mod6.1 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal +prev_choice + prevFeedback*StaySwitch_lag + since_reversal + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+
+mod6.2 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal + prev_choice + prevFeedback*StaySwitch_lag  + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+car::Anova(mod6.3, type = 3)
+car::vif(mod6.2)
+
+mod6.3 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal + task_phase*prev_choice + prevFeedback*StaySwitch_lag  (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+mod6.4 <- glmer(StaySwitch ~ rt_log + prevrt_log + prev_choice + task_phase*since_reversal*prevFeedback*StaySwitch_lag + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+mod6.4 <- glmer(StaySwitch ~ rt_log + prevrt_log + prev_choice + task_phase*since_reversal*prevFeedback + prevFeedback*StaySwitch_lag + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+AIC(mod6.3, mod6.2, mod6.1, mod6, mod6.4)
+car::Anova(mod6.4, type = 3)
+car::vif(mod6.4)
+```
+
+
+
+```{r}
+mod7 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal + task_phase*prev_choice + prevFeedback*StaySwitch_lag + (1+ prevFeedback| subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+AIC(mod6.3, mod7)
+car::vif(mod7)
+car::Anova(mod7, type = 3)
+
+mod7.1 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal + task_phase*prev_choice + prevFeedback*StaySwitch_lag + (1 + prevFeedback + prevrt_log | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+AIC(mod7.1, mod7)
+car::vif(mod7.1)
+summary(mod7.1)
+
+mod7.2 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal*prevFeedback + prevFeedback*StaySwitch_lag  + (1 + prevFeedback + task_phase | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+
+mod7.2 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal*prevFeedback + prevFeedback*StaySwitch_lag + phase_trialnum_z + (1 + prevFeedback + phase_trialnum_z + prevrt_log | subject) + (1 | subject:task_phase), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+AIC(mod6.3, mod7, mod7.1, mod7.2)
+car::vif(mod7.2)
+summary(mod7.2)
+```
+

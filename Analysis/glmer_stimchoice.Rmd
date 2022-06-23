@@ -1,0 +1,223 @@
+---
+title: "Reversal_stimchoice_randomeffects"
+author: "Sophie Paolizzi"
+date: '2022-06-10'
+output: html_document
+---
+### Markdown Purpose and Content
+
+This markdown follows the model selection procedure for the reversal task from the base model through the random effects structure. 
+
+### Variables at Play
+**ResponseCorrect_num**. Outcome variable: whether participants selected the outcome with a higher  (70%) probabilistic chanCe of reward.
+
+**prevrt_log**. Reaction time in previous trial. 
+
+**rt_log**. Reaction time of current trial. 
+
+**block_number**. block number (1-5) of the task. 
+
+**trial**. Within-phase trial number.
+
+**since_reversal **. Number of trials since a reversal has occurred. Also resets at the beginning of the phase, so counts beginning of block  as a "reversal". 
+
+**task_phase**. Reversal vs. Acquisition.
+
+**prev_choice**. The response participants selected on the previous trial (Acq_stim or Rev_stim). 
+
+**prevFeedback**. Feedback received from the previous trial - importantly, this is probabilistic."Correct" feedback means participants were told they were correct, where "incorrect" feedback means participants were told they were incorrect. 
+
+**ResponseandFeedbackCategory**. There are 4 possible outcomes combining previous response and previous feedback on any given trial. A participant could respond correctly and receive congruent feedback (CRCF; correct resp, feedback = "correct"); they could respond incorrectly and receieve congruent feedback (IRCF; incorrect resp, feedback = "correct"); they could respond correctly and recieve incongruent feedback (CRIF; correct resp, feedback = "incorrect"); or they could respond incorrectly and recieve incorrect feedback (IRIF; incorrect resp, feedback = "correct"). 
+
+### Hypotheses 
+As a reminder, here are the hypotheses at play:
+
+A. In a serial reversal task, there will be a relationship between heightened BPD symptoms (as indexed by the PAI-BOR) and relatively faster detection of contingency reversals, as indicated by fewer incorrect responses post-reversal. These learners will also be less likely to choose the same option consistently across the blocks. 
+B.  In a serial reversal task, higher scores on the PSWQ will be associated with relatively slower detection of reversing reward contingencies; Participants with higher PSWQ scores will tend to be consistent in their choices and experience more errors (and less correct answers) in learning post-reversal. 
+
+```{r setup, include=FALSE}
+pacman::p_load(tidyverse, dplyr, sjPlot, readr, janitor, ggplot2,wesanderson, cowplot, flextable, plotly, emmeans, lme4, qualtRics, sjPlot, circular, pracma, cowplot, psych, lattice)
+##### Load Data and setwd
+ll = FALSE
+if (ll == TRUE) {
+  home_directory <- "/proj/mnhallqlab/users/sophie/ReversalTask/"
+  data_dir <- file.path(paste0(home_directory, "data/"))
+} else {
+  home_directory <- "~/github_repos/ReversalTask/"
+  data_dir <- file.path(paste0(home_directory, "Data/"))
+}
+load(file = paste0(data_dir,'base_effects_data.RData'))
+
+data <- df %>% dplyr::filter(rt !=0) %>% dplyr::filter(!isResponseCorrect == 0) %>% filter(subject != 270470)
+
+data$rt_log <- log(data$rt)
+data$rt_inv<- -1/1000*(data$rt)
+minfo<- list()
+load("~/github_repos/Cannon_Task/Analysis/lmer/glmer_mods.Rdata")
+
+data <- data %>% 
+  mutate(trial_z = scale(trial_number),
+         total_trial_z = scale(total_trialnum),
+         task_phase = as.factor(task_phase),
+         prevFeedback = as.factor(prevFeedback),
+         phase_trialnum_z = scale(phase_trialnum),
+         since_reversal = scale(-100/phase_trialnum),
+         ResponseCorrect_num = dplyr::recode(ResponseCorrect_num, "-1" = 0, "1" = 1)) %>% 
+  group_by(subject) %>% mutate(prevResponse = as.factor(lag(Response)),
+                               prevrt_log = lag(rt_log)) %>% ungroup()
+
+
+#stim_ident
+data$stim_choice <- ifelse(data$task_phase == "Acquisiton" & data$ResponseCorrect == 1, "Acq_stim", "tmp")
+data$stim_choice <- ifelse(data$task_phase == "Reversal" & data$ResponseCorrect == 1, "Rev_stim", data$stim_choice)
+data$stim_choice <- ifelse(data$task_phase == "Reversal" & data$ResponseCorrect == 0, "Acq_stim", data$stim_choice)
+data$stim_choice <- ifelse(data$task_phase == "Acquisiton" & data$ResponseCorrect == 0, "Rev_stim", data$stim_choice)
+data$stim_choice <- as.factor(data$stim_choice)
+data$stim_choice <- relevel(data$stim_choice, ref = "Acq_stim")
+data$stim_choice_num <- as.numeric(recode(data$stim_choice, 'Acq_stim' = 0, 'Rev_stim' = 1))
+data$prev_choice <- lag(data$stim_choice)
+#random shorter things
+data$prev_choice <- lag(data$stim_choice)
+data$prev_choice <- lag(data$stim_choice)
+data$phase_early <- ifelse(data$phase_trialnum_z <0, "early", "late")
+```
+
+## Reviewing base model
+
+```{r}
+exp(fixef(mod10))
+summary(mod10)
+
+car::vif
+
+plot_model(mod10, show.values = TRUE,dot.size = 1, value.offset = .3, wrap.labels = 45,axis.labels = c("Task Phase x Feedback on Previous Trial", "Previous Choice x Feedback on Previous Trial", "Task Phase x Time since Reversal", "Previous Choice x Time since Reversal", "Previous Choice x Task Phase", "Trial Number", "Previous Reaction Time (log)",  "Reaction Time (log)", "Feedback on Previous Trial", "Time since Reversal","Task Phase","Previous Choice" ))
+```
+
+Fixed effects:
+                                                   Estimate Std. Error z value  OR      Pr(>|z|)    
+prev_choiceRev_stim                                 3.04184    0.06163  49.356 20.94     < 2e-16 ***
+21x more likely to pick reversal stim if you picked it before
+
+task_phaseReversal                                  0.55029    0.06167   8.923  1.73     < 2e-16 ***
+1.7x more likely to choose reversal stim in reversal block
+
+since_reversal                                     -0.17109    0.03443  -4.970   .84      6.70e-07 ***
+Participants are less likely to choose reversal stim as block gets later?
+
+prevFeedbackincorrect_feedback                      1.62370    0.05063  32.070  5.07     < 2e-16 ***
+participants are 5x more likely to choose the reversal stim if they just recieved incorrect feedback
+
+rt_log                                             -0.06013    0.02862  -2.101  0.94      0.03562 *  
+participants are less likely to choose the reversal stim as RTs get faster
+
+prevrt_log                                          0.05559    0.02874   1.935  1.06      0.05304 .  
+phase_trialnum_z                                    0.02207    0.02018   1.093  1.02      0.27423    
+
+prev_choiceRev_stim:task_phaseReversal              0.15871    0.06263   2.534  1.17      0.01128 *  
+1.7x more likely to pick reversal stim in the reversal block if you picked it on the previous trial, same seems true for acquisition block. 
+```{r}
+plot_model(mod10, type = "pred", terms = c("prev_choice", "task_phase"))
+```
+
+prev_choiceRev_stim:since_reversal                  0.24386    0.03186   7.654  1.28      1.94e-14 ***
+participants are more likely to pick each stim (reversal and acquisition) as participants gain more distance from a reversal point.
+```{r}
+plot_model(mod10, type = "pred", terms = c("since_reversal", "prev_choice"))
+```
+
+task_phaseReversal:since_reversal                   0.27934    0.03194   8.745  1.32     < 2e-16 ***
+participants are more likely to pick reversal stim in the reversal phase as the task goes on. Seems from graph that this holds true in acquistion block as well. 
+```{r}
+plot_model(mod10, type = "pred", terms = c("since_reversal", "task_phase"))
+```
+
+
+prev_choiceRev_stim:prevFeedbackincorrect_feedback -2.91114    0.06487 -44.874  0.05     < 2e-16 ***
+```{r}
+plot_model(mod10, type = "pred", terms = c("prev_choice", "prevFeedback"))
+```
+If you choose the reversal stim and get incorrect feedback, likelihood of choosing current stim seems to plummet. Clearer effect seems to be effect of previous feedback, such that if feedback was correct, people just keep on going. Seems like a congruency effect?
+
+task_phaseReversal:prevFeedbackincorrect_feedback  -0.20003    0.06467  -3.093  0.82      0.00198 ** 
+
+ 
+ 
+ 
+### Adding in previous feedback and previous choice
+ 
+ 
+ 
+## Adding in random efffect of previous feedback
+I know subject improves fit
+```{r}
+mod1 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (1 + prevFeedback |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+
+mod2 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (1 + prev_choice |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+
+mod2.1 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod2.2 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod2.3 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject) + (0 + prev_choice |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+summary(mod2.3)
+check_singularity(mod2.3)
+car::vif(mod2.1)
+AIC(mod10, mod1, mod2, mod2.1, mod2.2, mod2.3)
+
+mod1.0 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + since_reversal + ( 1 + since_reversal | subject:task_phase) + (0 + since_reversal | subject), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude)
+
+```
+
+
+### 
+```{r}
+mod3 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject) + (1| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod3.1 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod3.2 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod3.3 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z + prev_choice | subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+summary(mod3.3)
+car::vif(mod3.3)
+AIC(mod2.1, mod3, mod3.1, mod3.2, mod3.3)
+check_singularity(mod3.2)
+```
+
+
+## Adding in rt and prev_rt
+checking if there's an effect of trial number within-subject; seems like yes, but collinearity in random effects looks pretty uninterpretable - how can we help this?
+```{r}
+mod4 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod4.1 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prev_choice*task_phase*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod4.2 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + task_phase*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod4.3 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + task_phase*since_reversal + prev_choice*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod4.4 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prev_choice*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod4.5 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prevFeedback*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+mod4.6 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prev_choice*prevFeedback*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + since_reversal| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+summary(mod4.6)
+check_singularity(mod4.6)
+car::vif(mod4.6)
+AIC(mod3.2,mod4, mod4.1, mod4.2, mod4.3, mod4.4, mod4.5, mod4.6)
+
+```
+
+```{r}
+mod5 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prev_choice*prevFeedback*since_reversal + prev_choice*task_phase*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + since_reversal| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+
+AIC(mod4.6, mod5)
+car::vif(mod5)
+summary(mod5)
+```
+
