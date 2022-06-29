@@ -12,23 +12,26 @@ pacman::p_load(performance, devtools, tidyverse, nlme, sjPlot, readr, janitor, g
 ##### Load Data and setwd
 ll = FALSE
 if (ll == TRUE) {
-  home_directory <- "/proj/mnhallqlab/users/sophie/Cannon_Task/"
+  home_directory <- "/proj/mnhallqlab/users/sophie/ReversalTask/"
   data_dir <- file.path(paste0(home_directory, "Data/"))
 } else {
   home_directory <- "~/github_repos/ReversalTask"
   data_dir <- file.path(paste0(home_directory, "Data/"))
 }
-load(paste0(home_directory, "/Data/df_with_coefficients.RData"))
+load("~/github_repos/ReversalTask/Data/choose_rev_df_with_coefficients.RData")
 ```
 
 ### Calculate correlations between scores and random effects
 ```{r cars}
 vars <- names(coefficients)
-scores <- unique(with_coefs %>% dplyr::select(any_of(vars) | contains(c("PAI", "PSWQ", "STAI", "BFAS","PID")))) %>% dplyr::select(-c(grpvar, subject))
+vars <- vars[! vars %in% c('term', 'grpvar', 'subject')]
+scores <- unique(with_coefs_choose_rev %>% dplyr::select(any_of(vars) | contains(c("PAI", "PSWQ", "STAI", "BFAS","PID")))) 
 
-vars <- vars[! vars %in% c('grp', 'grpvar', 'subject')]
+scores
 
-score_names <- colnames(with_coefs %>% dplyr::select(contains(c("PAI", "PSWQ", "STAI", "BFAS","PID")))) 
+
+
+score_names <- colnames(with_coefs_choose_rev %>% dplyr::select(contains(c("PAI", "PSWQ", "STAI", "BFAS","PID")))) 
 
 cors <- matrix(1:(length(vars)*length(score_names)), byrow = FALSE,
                nrow = length(vars), ncol = length(score_names),
@@ -37,14 +40,20 @@ cors <- matrix(1:(length(vars)*length(score_names)), byrow = FALSE,
 for (i in 1:length(vars)){
   j <- vars[i]
     for (k in score_names){
-    tmp <- cor(scores %>% dplyr::select(paste0(j)), scores %>% dplyr::select(paste0(k)), use="na.or.complete")
-    cors[j,k] <- as.numeric(tmp)            
+      if (j == "subject"){
+      } else{
+        tmp <- cor(scores %>% dplyr::select(paste0(j)), scores %>% dplyr::select(paste0(k)), use="na.or.complete")
+    cors[j,k] <- as.numeric(tmp)         
+      }
+       
     }
   }
 
-cors_df <- as.data.frame(cors)
-cors <- cors_df %>% as.data.frame %>% tibble::rownames_to_column() %>% 
+cors_df_choose_rev <- cors_df <- as.data.frame(cors)
+cors_choose_rev <- cors <- cors_df %>% as.data.frame %>% tibble::rownames_to_column() %>% 
     tidyr::pivot_longer(-rowname) %>% filter(abs(value) >.2)
+
+save(cors_df_choose_rev, cors_choose_rev, file = "~/github_repos/ReversalTask/Results/choose_rev_indv_diff.RData")
 
 ```
 

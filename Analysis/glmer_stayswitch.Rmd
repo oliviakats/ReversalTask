@@ -121,13 +121,10 @@ data$StaySwitch_lag <-lag(data$StaySwitch)
 ### Standard trial-level covariates; Trial
 According to Michael's edits and beginning analysis from a stimulus_choice perspective; starting with trial; I compared total_trial_z, or trial number across the full task and all blocks, trial_z which is the scaled, within-block trial number, and the within-phase scaled trial number. I realized trial_z is inherently going to have problems with collinearity once task_phase gets introduced, so going with phase_trialnum_z as Michael originally suggested. 
 ```{r}
-minfo[["mod0"]] <- c(fixed="within-block trial number", l2="Intercept/Subject")
 mod0 <- glmer(StaySwitch ~ trial_z + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 10, data = data)
 
-minfo[["mod0.1"]] <- c(fixed="Total trial number", l2="Intercept/Subject")
 mod0.1 <- glmer(StaySwitch ~ total_trial_z + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 10, data = data)
 
-minfo[["mod0.2"]] <- c(fixed="Phase-level Trial", l2="Intercept/Subject")
 mod0.2 <- glmer(StaySwitch ~ phase_trialnum_z + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 10, data = data)
 
 
@@ -137,12 +134,11 @@ plot(fitted, resids)
 AIC(mod0, mod0.1, mod0.2)
 summary(mod0)
 ```
+
 ```{r}
-minfo[["mod1"]] <- c(fixed="Trial, RT", l2="Intercept/Subject")
 mod1 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 10, data = data)
 summary(mod1)
 
-minfo[["mod1.1"]] <- c(fixed="Trial, RT, prevRT", l2="Intercept/Subject")
 mod1.1 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"),
                 nAGQ = 10, data = data)
 summary(mod1.1)
@@ -163,6 +159,8 @@ AIC(mod1.1, mod2)
 
 check out previous feedback; expect it to be huge
 ```{r}
+
+
 mod3 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + task_phase + prevFeedback + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"),
                 nAGQ = 1, data = data)
 
@@ -181,6 +179,7 @@ car::vif(mod4)
 ```
 
 ```{r}
+
 mod5 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + task_phase + prevFeedback + since_reversal + prev_choice + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
 
 mod5.1 <- glmer(StaySwitch ~ phase_trialnum_z + rt_log + prevrt_log + task_phase + prevFeedback + StaySwitch_lag + since_reversal + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
@@ -197,16 +196,16 @@ car::vif(mod5.3)
 
 
 ```{r}
-mod6 <- glmer(StaySwitch ~  rt_log + prevrt_log + task_phase +prev_choice + prevFeedback*StaySwitch_lag + since_reversal + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+mod6 <- glmer(StaySwitch ~  rt_log + prevrt_log + task_phase + prev_choice + prevFeedback*StaySwitch_lag + since_reversal + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
 
 mod6.1 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal +prev_choice + prevFeedback*StaySwitch_lag + since_reversal + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
 
-
-mod6.2 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal + prev_choice + prevFeedback*StaySwitch_lag  + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+mod6.2 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal + prevFeedback*StaySwitch_lag  + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
 car::Anova(mod6.3, type = 3)
 car::vif(mod6.2)
 
-mod6.3 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal + task_phase*prev_choice + prevFeedback*StaySwitch_lag  (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+
+mod6.3 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal + task_phase*prev_choice + prevFeedback*StaySwitch_lag +  (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
 
 mod6.4 <- glmer(StaySwitch ~ rt_log + prevrt_log + prev_choice + task_phase*since_reversal*prevFeedback*StaySwitch_lag + (1 | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
 
@@ -216,8 +215,6 @@ AIC(mod6.3, mod6.2, mod6.1, mod6, mod6.4)
 car::Anova(mod6.4, type = 3)
 car::vif(mod6.4)
 ```
-
-
 
 ```{r}
 mod7 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal + task_phase*prev_choice + prevFeedback*StaySwitch_lag + (1+ prevFeedback| subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
@@ -232,11 +229,64 @@ summary(mod7.1)
 
 mod7.2 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal*prevFeedback + prevFeedback*StaySwitch_lag  + (1 + prevFeedback + task_phase | subject), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
 
-
-mod7.2 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal*prevFeedback + prevFeedback*StaySwitch_lag + phase_trialnum_z + (1 + prevFeedback + phase_trialnum_z + prevrt_log | subject) + (1 | subject:task_phase), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
+mod7.3 <- glmer(StaySwitch ~ rt_log + prevrt_log + task_phase*since_reversal*prevFeedback + prevFeedback*StaySwitch_lag + phase_trialnum_z + (1 + prevFeedback + phase_trialnum_z + prevrt_log | subject) + (1 | subject:task_phase), family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 1, data = data)
 
 AIC(mod6.3, mod7, mod7.1, mod7.2)
-car::vif(mod7.2)
+car::vif(mod7.1)
 summary(mod7.2)
+```
+
+
+```{r}
+minfo[["mod0"]] <- c(fixed="within-block trial number", l2="Intercept/Subject", ixns = 'None', max_vif = 'None')
+minfo[["mod0.1"]] <- c(fixed="Total trial number", l2="Intercept/Subject", ixns = 'None', max_vif = 'None')
+minfo[["mod0.2"]] <- c(fixed="Phase-level Trial", l2="Intercept/Subject", ixns = 'None', max_vif = 'None')
+minfo[["mod1"]] <- c(fixed="Trial, RT", l2="Intercept/Subject", ixns = 'None', max_vif = as.character(max(c(car::vif(mod1)))))
+minfo[["mod1.1"]] <- c(fixed="Trial, RT, prevRT", l2="Intercept/Subject", ixns = 'None', max_vif =as.character(max(c(car::vif(mod1.1)))))
+minfo[["mod2"]] <- c(fixed="Trial, RT, prevRT, task_phase", l2="Intercept/Subject", ixns = 'None', max_vif =as.character(max(c(car::vif(mod2)))))
+minfo[["mod3"]] <- c(fixed="Trial, RT, prevRT, task_phase, previous feedback", l2="Intercept/Subject", ixns = 'None', max_vif =as.character(max(c(car::vif(mod3)))))
+minfo[["mod4"]] <- c(fixed="Trial, RT, prevRT, task_phase, previous feedback, previous choice", l2="Intercept/Subject", ixns = 'None', max_vif =as.character(max(c(car::vif(mod3)))))
+minfo[["mod5"]] <- c(fixed="Trial, RT, prevRT, task_phase, previous feedback, previous choice, time since reversal", l2="Intercept/Subject", ixns = 'None', max_vif =as.character(max(c(car::vif(mod5)))))
+minfo[["mod5.1"]] <- c(fixed="Trial, RT, prevRT, task_phase, previous feedback, time since reversal, lagged stay switch", l2="Intercept/Subject", ixns = 'None', max_vif =as.character(max(c(car::vif(mod5.1)))))
+minfo[["mod5.2"]] <- c(fixed="Trial, RT, prevRT, task_phase, previous feedback, time since reversal, lagged stay switch", l2="Intercept/Subject", ixns = 'None', max_vif =as.character(max(c(car::vif(mod5.2)))))
+minfo[["mod5.3"]] <- c(fixed="RT, prevRT, task_phase, previous feedback, time since reversal, lagged stay switch, previous choice", l2="Intercept/Subject", ixns = 'None', max_vif =as.character(max(c(car::vif(mod5.3)))))
+minfo[["mod6"]] <- c(fixed="RT, prevRT, task_phase, previous feedback x lagged stay switch, time since reversal, previous choice", l2="Intercept/Subject", ixns = 'None', max_vif =as.character(max(c(car::vif(mod6)))))
+minfo[["mod6.1"]] <- c(fixed="RT, prevRT, previous choice", l2="Intercept/Subject", ixns = ' time since reversal x task phase, previous feedback x lagged stay switch ', max_vif =as.character(max(c(car::vif(mod6.1)))))
+minfo[["mod6.2"]] <- c(fixed="RT, prevRT", l2="Intercept/Subject", ixns = ' time since reversal x task phase, previous feedback x lagged stay switch ', max_vif =as.character(max(c(car::vif(mod6.2)))))
+minfo[["mod6.3"]] <- c(fixed="RT, prevRT", l2="Intercept/Subject", ixns = ' time since reversal x task phase, previous feedback x lagged stay switch, task phase x previous choice ', max_vif =as.character(max(c(car::vif(mod6.3)))))
+minfo[["mod6.4"]] <- c(fixed="RT, prevRT", l2="Intercept/Subject", ixns = ' time since reversal x task phase x previous feedback x lagged stay switch ', max_vif =as.character(max(c(car::vif(mod6.4)))))
+minfo[["mod7"]] <- c(fixed="RT, prevRT", l2="Intercept, previous Feedback /Subject", ixns = ' time since reversal x task phase, task phase x previous choice,  x previous feedback x lagged stay switch ', max_vif =as.character(max(c(car::vif(mod7)))))
+minfo[["mod7.1"]] <- c(fixed="RT, prevRT", l2="Intercept, previous feedback, previous RT/Subject", ixns = ' time since reversal x task phase, task phase x previous choice,  x previous feedback x lagged stay switch ', max_vif =as.character(max(c(car::vif(mod7.1)))))
+minfo[["mod7.2"]] <- c(fixed="RT, prevRT", l2="Intercept, previous feedback, task phase/Subject", ixns = ' time since reversal x task phase, task phase x previous choice,  x previous feedback x lagged stay switch ', max_vif =as.character(max(c(car::vif(mod7.2)))))
+minfo[["mod7.3"]] <- c(fixed="RT, prevRT, phase_trialnum_z", l2="Intercept, previous feedback, phase_trialnum_z, previous RT /Subject", ixns = ' time since reversal x task phase, task phase x previous choice,  x previous feedback x lagged stay switch ', max_vif =as.character(max(c(car::vif(mod7.3)))))
+
+minfo[["stay_switch"]] <- c(fixed="RT, prevRT", l2="previous feedback, previous RT /Subject", ixns = ' time since reversal x task phase, task phase x previous choice,  x previous feedback x lagged stay switch ', max_vif =as.character(max(c(car::vif(stay_switch)))))
+
+mlist <- list()
+mlist[["mod0"]] <- mod0
+mlist[["mod0.1"]] <- mod0.1
+mlist[["mod0.22"]] <- mod0.2
+mlist[["mod1"]] <- mod1
+mlist[["mod1.1"]] <- mod1.1
+mlist[["mod2"]] <- mod2
+mlist[["mod3"]] <- mod3
+mlist[["mod4"]] <- mod4
+mlist[["mod5"]] <- mod5
+mlist[["mod5.1"]] <- mod5.1
+mlist[["mod5.2"]] <- mod5.2
+mlist[["mod5.3"]] <- mod5.3
+mlist[["mod6"]] <- mod6
+mlist[["mod6.1"]] <- mod6.1
+mlist[["mod6.2"]] <- mod6.2
+mlist[["mod6.3"]] <- mod6.3
+mlist[["mod6.4"]] <- mod6.4
+mlist[["mod7"]] <- mod7
+mlist[["mod7.1"]] <- mod7.1
+mlist[["mod7.2"]] <- mod7.2
+mlist[["mod7.3"]] <- mod7.3
+mlist[["stay_switch"]] <- stay_switch
+
+table_stay_switch <- dependlab::render_flex_aictab(minfo = minfo, mlist = mlist) %>% autofit()
+summary(mod7)
 ```
 

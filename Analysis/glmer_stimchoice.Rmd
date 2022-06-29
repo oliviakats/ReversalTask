@@ -66,29 +66,28 @@ data <- data %>%
   group_by(subject) %>% mutate(prevResponse = as.factor(lag(Response)),
                                prevrt_log = lag(rt_log)) %>% ungroup()
 
-
+data$task_phase_character <- as.character(data$task_phase)
 #stim_ident
-data$stim_choice <- ifelse(data$task_phase == "Acquisiton" & data$ResponseCorrect == 1, "Acq_stim", "tmp")
-data$stim_choice <- ifelse(data$task_phase == "Reversal" & data$ResponseCorrect == 1, "Rev_stim", data$stim_choice)
-data$stim_choice <- ifelse(data$task_phase == "Reversal" & data$ResponseCorrect == 0, "Acq_stim", data$stim_choice)
-data$stim_choice <- ifelse(data$task_phase == "Acquisiton" & data$ResponseCorrect == 0, "Rev_stim", data$stim_choice)
-data$stim_choice <- as.factor(data$stim_choice)
-data$stim_choice <- relevel(data$stim_choice, ref = "Acq_stim")
-data$stim_choice_num <- as.numeric(recode(data$stim_choice, 'Acq_stim' = 0, 'Rev_stim' = 1))
-data$prev_choice <- lag(data$stim_choice)
+data<- data %>% group_by(subject, task_phase_character) %>% 
+  mutate(stim_num = ifelse(isResponseCorrect == 1, index_correctChoice, index_incorrectChoice),
+         choose_A = ifelse(task_phase_character == "Reversal" & stim_num == index_correctChoice, "A", "B"),
+         choose_A = ifelse(task_phase_character == "Acquisition" & stim_num == index_incorrectChoice, "B", choose_A)) %>% ungroup()
+data$choose_A <- as.factor(data$choose_A)
+data$prev_choice <- lag(data$choose_A)
 #random shorter things
-data$prev_choice <- lag(data$stim_choice)
-data$prev_choice <- lag(data$stim_choice)
 data$phase_early <- ifelse(data$phase_trialnum_z <0, "early", "late")
 ```
 
 ## Reviewing base model
 
 ```{r}
-exp(fixef(mod10))
-summary(mod10)
 
-car::vif
+base_mod_2 <- glmer(choose_A ~ prev_choice*task_phase + task_phase*prevFeedback +  prev_choice*prevFeedback + prev_choice*since_reversal + task_phase*since_reversal + rt_log + prevrt_log + since_reversal + ( 1 | subject), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude)
+
+exp(fixef(mod10))
+summary(base_mod_2)
+car::vif(base_mod_2)
+AIC(base_mod,base_mod_2)
 
 plot_model(mod10, show.values = TRUE,dot.size = 1, value.offset = .3, wrap.labels = 45,axis.labels = c("Task Phase x Feedback on Previous Trial", "Previous Choice x Feedback on Previous Trial", "Task Phase x Time since Reversal", "Previous Choice x Time since Reversal", "Previous Choice x Task Phase", "Trial Number", "Previous Reaction Time (log)",  "Reaction Time (log)", "Feedback on Previous Trial", "Time since Reversal","Task Phase","Previous Choice" ))
 ```
@@ -150,37 +149,37 @@ task_phaseReversal:prevFeedbackincorrect_feedback  -0.20003    0.06467  -3.093  
 ## Adding in random efffect of previous feedback
 I know subject improves fit
 ```{r}
-mod1 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (1 + prevFeedback |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod1 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (1 + prevFeedback |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
 
-mod2 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (1 + prev_choice |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod2 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (1 + prev_choice |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
 
-mod2.1 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod2.1 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod2.2 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod2.2 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod2.3 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject) + (0 + prev_choice |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod2.3 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject) + (0 + prev_choice |subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
 summary(mod2.3)
 check_singularity(mod2.3)
 car::vif(mod2.1)
 AIC(mod10, mod1, mod2, mod2.1, mod2.2, mod2.3)
 
-mod1.0 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + since_reversal + ( 1 + since_reversal | subject:task_phase) + (0 + since_reversal | subject), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude)
+mod1.0 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + since_reversal + ( 1 + since_reversal | subject:task_phase) + (0 + since_reversal | subject), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude)
 
 ```
 
 
 ### 
 ```{r}
-mod3 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject) + (1| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod3 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject) + (1| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod3.1 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod3.1 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prev_choice |subject) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod3.2 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod3.2 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod3.3 <- glmer(stim_choice ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z + prev_choice | subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod3.3 <- glmer(choose_A ~ prev_choice*task_phase + prev_choice*since_reversal + task_phase*since_reversal  + prev_choice*prevFeedback + prevFeedback*task_phase + rt_log + prevrt_log + phase_trialnum_z + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z + prev_choice | subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
 summary(mod3.3)
 car::vif(mod3.3)
@@ -192,29 +191,29 @@ check_singularity(mod3.2)
 ## Adding in rt and prev_rt
 checking if there's an effect of trial number within-subject; seems like yes, but collinearity in random effects looks pretty uninterpretable - how can we help this?
 ```{r}
-mod4 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod4 <- glmer(choose_A ~ prev_choice*task_phase*prevFeedback + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod4.1 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prev_choice*task_phase*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod4.1 <- glmer(choose_A ~ prev_choice*task_phase*prevFeedback + prev_choice*task_phase*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod4.2 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + task_phase*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod4.2 <- glmer(choose_A ~ prev_choice*task_phase*prevFeedback + task_phase*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod4.3 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + task_phase*since_reversal + prev_choice*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod4.3 <- glmer(choose_A ~ prev_choice*task_phase*prevFeedback + task_phase*since_reversal + prev_choice*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod4.4 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prev_choice*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod4.4 <- glmer(choose_A ~ prev_choice*task_phase*prevFeedback + prev_choice*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod4.5 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prevFeedback*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod4.5 <- glmer(choose_A ~ prev_choice*task_phase*prevFeedback + prevFeedback*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + phase_trialnum_z| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-mod4.6 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prev_choice*prevFeedback*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + since_reversal| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod4.6 <- glmer(choose_A ~ prev_choice*task_phase*prevFeedback + prev_choice*prevFeedback*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + since_reversal| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
-summary(mod4.6)
-check_singularity(mod4.6)
-car::vif(mod4.6)
+summary(mod4.1)
+check_singularity(mod4.1)
+car::vif(mod4.1)
 AIC(mod3.2,mod4, mod4.1, mod4.2, mod4.3, mod4.4, mod4.5, mod4.6)
 
 ```
 
 ```{r}
-mod5 <- glmer(stim_choice ~ prev_choice*task_phase*prevFeedback + prev_choice*prevFeedback*since_reversal + prev_choice*task_phase*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + since_reversal| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
+mod5 <- glmer(choose_A ~ prev_choice*task_phase*prevFeedback + prev_choice*prevFeedback*since_reversal + prev_choice*task_phase*since_reversal + rt_log + prevrt_log + phase_trialnum_z + since_reversal + (0 + prevFeedback |subject:prev_choice) + (1 + since_reversal| subject:task_phase), family="binomial", control=glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun=2e4)), nAGQ = 1, data = data, na.action = na.exclude) # singular intercept
 
 AIC(mod4.6, mod5)
 car::vif(mod5)
